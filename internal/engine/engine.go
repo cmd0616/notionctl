@@ -81,12 +81,30 @@ func (e *Engine) Plan() ([]Action, error) {
 }
 
 // Apply executes the planned actions against the Notion API.
+//
+// Two-pass strategy for fresh creates:
+//   - Pass 1: Create all databases with non-relation properties only.
+//     This ensures every database has a Notion ID in state.
+//   - Pass 2: Update all databases that have relation properties,
+//     now that all IDs are resolvable.
 func (e *Engine) Apply() ([]Action, error) {
 	actions, err := e.Plan()
 	if err != nil {
 		return nil, err
 	}
 
+	if len(actions) == 0 {
+		return actions, nil
+	}
+
+	// Collect which databases need relation updates after creation.
+	type pendingRelation struct {
+		db    *config.Database
+		index int // index into actions slice
+	}
+	var pending []pendingRelation
+
+	// --- Pass 1: Create/update databases (skip relation properties for new databases) ---
 	for i, action := range actions {
 		switch action.Type {
 		case "create":
@@ -99,8 +117,8 @@ func (e *Engine) Apply() ([]Action, error) {
 				return nil, fmt.Errorf("database %q: parent_page_id required for new databases", db.Name)
 			}
 
-			// Build Notion properties payload
-			props, err := e.buildProperties(db)
+			// Build properties WITHOUT relations first
+			props, hasRelations, err := e.buildPropertiesFiltered(db, false)
 			if err != nil {
 				return nil, fmt.Errorf("database %q: %w", db.Name, err)
 			}
@@ -111,9 +129,13 @@ func (e *Engine) Apply() ([]Action, error) {
 				return nil, err
 			}
 
-			// Update state
+			// Update state immediately so other databases can reference this ID
 			e.state.SetDatabase(db.Name, id)
 			actions[i].Details = append(actions[i].Details, fmt.Sprintf("→ created with ID %s", id))
+
+			if hasRelations {
+				pending = append(pending, pendingRelation{db: db, index: i})
+			}
 
 		case "update":
 			db := e.findDatabase(action.DatabaseName)
@@ -135,6 +157,24 @@ func (e *Engine) Apply() ([]Action, error) {
 		}
 	}
 
+	// --- Pass 2: Update newly created databases with relation properties ---
+	for _, p := range pending {
+		dbID, _ := e.state.ResolveDatabase(p.db.Name)
+
+		// Build only relation properties
+		relationProps, _, err := e.buildPropertiesFiltered(p.db, true)
+		if err != nil {
+			return nil, fmt.Errorf("database %q (pass 2): %w", p.db.Name, err)
+		}
+
+		if len(relationProps) > 0 {
+			if err := e.client.UpdateDatabase(dbID, relationProps); err != nil {
+				return nil, fmt.Errorf("database %q: setting relations: %w", p.db.Name, err)
+			}
+			actions[p.index].Details = append(actions[p.index].Details, "→ relations linked")
+		}
+	}
+
 	// Save state after all operations
 	if err := e.state.Save(e.root); err != nil {
 		return nil, fmt.Errorf("saving state: %w", err)
@@ -143,31 +183,67 @@ func (e *Engine) Apply() ([]Action, error) {
 	return actions, nil
 }
 
+// buildProperties builds the full Notion properties payload for a database.
 func (e *Engine) buildProperties(db *config.Database) (map[string]interface{}, error) {
+	props, _, err := e.buildPropertiesFiltered(db, false)
+	if err != nil {
+		return nil, err
+	}
+	// Also add relations
+	relProps, _, err := e.buildPropertiesFiltered(db, true)
+	if err != nil {
+		return nil, err
+	}
+	for k, v := range relProps {
+		props[k] = v
+	}
+	return props, nil
+}
+
+// buildPropertiesFiltered builds properties, either relations-only or non-relations-only.
+// Returns the properties map, whether the database has any relation properties, and any error.
+func (e *Engine) buildPropertiesFiltered(db *config.Database, relationsOnly bool) (map[string]interface{}, bool, error) {
 	props := map[string]interface{}{}
+	hasRelations := false
 
 	for name, propDef := range db.Properties {
+		isRelation := propDef.Type == "relation"
+
+		if isRelation {
+			hasRelations = true
+		}
+
+		// Filter: skip based on mode
+		if relationsOnly && !isRelation {
+			continue
+		}
+		if !relationsOnly && isRelation {
+			continue
+		}
+
 		handler, err := property.Get(propDef.Type)
 		if err != nil {
-			return nil, fmt.Errorf("property %q: %w", name, err)
+			return nil, hasRelations, fmt.Errorf("property %q: %w", name, err)
 		}
 
 		notionCfg, err := handler.ToNotion(propDef.Extra)
 		if err != nil {
-			return nil, fmt.Errorf("property %q: %w", name, err)
+			return nil, hasRelations, fmt.Errorf("property %q: %w", name, err)
 		}
 
 		// Resolve relation references
-		e.resolveRelations(notionCfg)
+		if isRelation {
+			e.resolveRelations(notionCfg)
+		}
 
 		props[name] = notionCfg
 	}
 
-	return props, nil
+	return props, hasRelations, nil
 }
 
 func (e *Engine) resolveRelations(cfg property.NotionPropertyConfig) {
-	for key, val := range cfg {
+	for _, val := range cfg {
 		if m, ok := val.(map[string]interface{}); ok {
 			if dbID, ok := m["database_id"].(string); ok {
 				if strings.HasPrefix(dbID, "{{resolve:") {
@@ -176,12 +252,9 @@ func (e *Engine) resolveRelations(cfg property.NotionPropertyConfig) {
 					if resolved, ok := e.state.ResolveDatabase(name); ok {
 						m["database_id"] = resolved
 					}
-					// If not resolved yet, it will be resolved in a second pass
-					// after all databases are created.
 				}
 			}
 		}
-		_ = key
 	}
 }
 

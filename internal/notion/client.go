@@ -19,13 +19,26 @@ const (
 // Client is a Notion API client.
 type Client struct {
 	token      string
+	baseURL    string
 	httpClient *http.Client
 }
 
 // NewClient creates a new Notion API client with the given integration token.
 func NewClient(token string) *Client {
 	return &Client{
-		token: token,
+		token:   token,
+		baseURL: baseURL,
+		httpClient: &http.Client{
+			Timeout: defaultTimeout,
+		},
+	}
+}
+
+// NewClientWithBase creates a client with a custom base URL (for testing).
+func NewClientWithBase(base, token string) *Client {
+	return &Client{
+		token:   token,
+		baseURL: base,
 		httpClient: &http.Client{
 			Timeout: defaultTimeout,
 		},
@@ -94,7 +107,7 @@ func (c *Client) do(method, path string, body interface{}) (map[string]interface
 		reqBody = bytes.NewReader(data)
 	}
 
-	req, err := http.NewRequest(method, baseURL+path, reqBody)
+	req, err := http.NewRequest(method, c.baseURL+path, reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("creating request: %w", err)
 	}
