@@ -1,5 +1,9 @@
 # notionctl
 
+[![CI](https://github.com/radityajay/notionctl/actions/workflows/ci.yml/badge.svg)](https://github.com/radityajay/notionctl/actions/workflows/ci.yml)
+[![Go Reference](https://pkg.go.dev/badge/github.com/radityajayantara/notionctl.svg)](https://pkg.go.dev/github.com/radityajayantara/notionctl)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
 Declarative Notion database management. Define your databases in YAML, sync them to Notion with one command.
 
 **The problem:** Managing Notion database IDs and relations across automations is painful. IDs change when you copy databases, differ between workspaces, and are impossible to read in scripts.
@@ -49,6 +53,25 @@ notionctl apply
 | `notionctl init` | Generate starter `notionctl.yaml` |
 | `notionctl plan` | Preview changes (diff config vs state) |
 | `notionctl apply` | Create/update databases in Notion |
+| `notionctl version` | Print version |
+
+## Templates
+
+Start from a pre-built template instead of from scratch:
+
+```bash
+cp templates/crm.yaml notionctl.yaml
+# Edit parent_page_id, then:
+notionctl plan
+```
+
+| Template | Databases | Use Case |
+|----------|-----------|----------|
+| [`crm.yaml`](templates/crm.yaml) | Contacts, Deals | Sales pipeline |
+| [`inventory.yaml`](templates/inventory.yaml) | Products, Suppliers | Stock management |
+| [`project-tracker.yaml`](templates/project-tracker.yaml) | Projects, Milestones, Tasks | Project management |
+
+Want to add a template? See [CONTRIBUTING.md](CONTRIBUTING.md) — no Go required!
 
 ## Supported Property Types
 

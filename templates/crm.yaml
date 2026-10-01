@@ -1,0 +1,55 @@
+# CRM (Customer Relationship Management) template
+# Usage: cp templates/crm.yaml notionctl.yaml && notionctl plan
+version: "1"
+
+databases:
+  - name: Contacts
+    parent_page_id: "YOUR_PAGE_ID"
+    properties:
+      Name:
+        type: title
+      Email:
+        type: rich_text
+      Phone:
+        type: rich_text
+      Company:
+        type: rich_text
+      Status:
+        type: select
+        options:
+          - name: Lead
+            color: gray
+          - name: Prospect
+            color: yellow
+          - name: Customer
+            color: green
+          - name: Churned
+            color: red
+      deals:
+        type: relation
+        relation: Deals
+
+  - name: Deals
+    parent_page_id: "YOUR_PAGE_ID"
+    properties:
+      Name:
+        type: title
+      Value:
+        type: number
+        format: dollar
+      Stage:
+        type: select
+        options:
+          - name: Discovery
+            color: gray
+          - name: Proposal
+            color: blue
+          - name: Negotiation
+            color: yellow
+          - name: Closed Won
+            color: green
+          - name: Closed Lost
+            color: red
+      contact:
+        type: relation
+        relation: Contacts

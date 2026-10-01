@@ -1,0 +1,94 @@
+# Project Tracker template
+# Usage: cp templates/project-tracker.yaml notionctl.yaml && notionctl plan
+version: "1"
+
+databases:
+  - name: Projects
+    parent_page_id: "YOUR_PAGE_ID"
+    properties:
+      Name:
+        type: title
+      Description:
+        type: rich_text
+      Budget:
+        type: number
+        format: dollar
+      Status:
+        type: select
+        options:
+          - name: Planning
+            color: gray
+          - name: Active
+            color: green
+          - name: On Hold
+            color: yellow
+          - name: Completed
+            color: blue
+          - name: Cancelled
+            color: red
+      milestones:
+        type: relation
+        relation: Milestones
+      tasks:
+        type: relation
+        relation: Tasks
+
+  - name: Milestones
+    parent_page_id: "YOUR_PAGE_ID"
+    properties:
+      Name:
+        type: title
+      Status:
+        type: select
+        options:
+          - name: Upcoming
+            color: gray
+          - name: In Progress
+            color: yellow
+          - name: Reached
+            color: green
+      project:
+        type: relation
+        relation: Projects
+
+  - name: Tasks
+    parent_page_id: "YOUR_PAGE_ID"
+    properties:
+      Name:
+        type: title
+      Notes:
+        type: rich_text
+      Priority:
+        type: select
+        options:
+          - name: Low
+            color: gray
+          - name: Medium
+            color: yellow
+          - name: High
+            color: orange
+          - name: Critical
+            color: red
+      Status:
+        type: select
+        options:
+          - name: To Do
+            color: default
+          - name: In Progress
+            color: blue
+          - name: Done
+            color: green
+      Tags:
+        type: multi_select
+        options:
+          - name: bug
+            color: red
+          - name: feature
+            color: blue
+          - name: docs
+            color: gray
+          - name: design
+            color: purple
+      project:
+        type: relation
+        relation: Projects

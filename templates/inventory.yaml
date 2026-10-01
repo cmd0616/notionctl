@@ -1,0 +1,63 @@
+# Inventory Management template
+# Usage: cp templates/inventory.yaml notionctl.yaml && notionctl plan
+version: "1"
+
+databases:
+  - name: Products
+    parent_page_id: "YOUR_PAGE_ID"
+    properties:
+      Name:
+        type: title
+      SKU:
+        type: rich_text
+      Price:
+        type: number
+        format: dollar
+      Quantity:
+        type: number
+        format: number
+      Category:
+        type: select
+        options:
+          - name: Electronics
+            color: blue
+          - name: Clothing
+            color: purple
+          - name: Food
+            color: green
+          - name: Other
+            color: gray
+      Tags:
+        type: multi_select
+        options:
+          - name: in-stock
+            color: green
+          - name: low-stock
+            color: yellow
+          - name: out-of-stock
+            color: red
+          - name: discontinued
+            color: gray
+      supplier:
+        type: relation
+        relation: Suppliers
+
+  - name: Suppliers
+    parent_page_id: "YOUR_PAGE_ID"
+    properties:
+      Name:
+        type: title
+      Contact:
+        type: rich_text
+      Region:
+        type: select
+        options:
+          - name: Asia
+            color: blue
+          - name: Europe
+            color: green
+          - name: Americas
+            color: orange
+      products:
+        type: relation
+        relation: Products
