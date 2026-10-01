@@ -1,0 +1,54 @@
+# Example notionctl configuration
+# Generate this file with: notionctl init
+version: "1"
+
+databases:
+  - name: Projects
+    parent_page_id: "paste-your-notion-page-id-here"
+    properties:
+      Name:
+        type: title
+      Description:
+        type: rich_text
+      Budget:
+        type: number
+        format: dollar
+      Status:
+        type: select
+        options:
+          - name: Planning
+            color: gray
+          - name: Active
+            color: green
+          - name: On Hold
+            color: yellow
+          - name: Completed
+            color: blue
+      tasks:
+        type: relation
+        relation: Tasks
+
+  - name: Tasks
+    parent_page_id: "paste-your-notion-page-id-here"
+    properties:
+      Name:
+        type: title
+      Notes:
+        type: rich_text
+      Priority:
+        type: number
+        format: number
+      Tags:
+        type: multi_select
+        options:
+          - name: bug
+            color: red
+          - name: feature
+            color: blue
+          - name: docs
+            color: gray
+          - name: urgent
+            color: orange
+      project:
+        type: relation
+        relation: Projects
