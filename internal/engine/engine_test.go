@@ -10,12 +10,12 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/radityajayantara/notionctl/internal/config"
-	"github.com/radityajayantara/notionctl/internal/notion"
-	"github.com/radityajayantara/notionctl/internal/state"
+	"github.com/radityajay/notionctl/internal/config"
+	"github.com/radityajay/notionctl/internal/notion"
+	"github.com/radityajay/notionctl/internal/state"
 
 	// Register property types for tests.
-	_ "github.com/radityajayantara/notionctl/internal/property"
+	_ "github.com/radityajay/notionctl/internal/property"
 )
 
 func makeConfig(t *testing.T, yaml string) *config.Config {

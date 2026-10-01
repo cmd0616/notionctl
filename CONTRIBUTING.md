@@ -5,7 +5,7 @@ Thanks for your interest! This project is designed to make contributing easy.
 ## Quick Start
 
 ```bash
-git clone https://github.com/radityajayantara/notionctl.git
+git clone https://github.com/radityajay/notionctl.git
 cd notionctl
 go test ./...
 go build -o notionctl .

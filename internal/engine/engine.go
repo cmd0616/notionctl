@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/radityajayantara/notionctl/internal/config"
-	"github.com/radityajayantara/notionctl/internal/notion"
-	"github.com/radityajayantara/notionctl/internal/property"
-	"github.com/radityajayantara/notionctl/internal/state"
+	"github.com/radityajay/notionctl/internal/config"
+	"github.com/radityajay/notionctl/internal/notion"
+	"github.com/radityajay/notionctl/internal/property"
+	"github.com/radityajay/notionctl/internal/state"
 )
 
 // Action represents a planned change.

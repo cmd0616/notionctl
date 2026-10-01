@@ -6,13 +6,13 @@ import (
 
 	"github.com/spf13/cobra"
 
-	"github.com/radityajayantara/notionctl/internal/config"
-	"github.com/radityajayantara/notionctl/internal/engine"
-	"github.com/radityajayantara/notionctl/internal/notion"
-	"github.com/radityajayantara/notionctl/internal/state"
+	"github.com/radityajay/notionctl/internal/config"
+	"github.com/radityajay/notionctl/internal/engine"
+	"github.com/radityajay/notionctl/internal/notion"
+	"github.com/radityajay/notionctl/internal/state"
 
 	// Register all property types.
-	_ "github.com/radityajayantara/notionctl/internal/property"
+	_ "github.com/radityajay/notionctl/internal/property"
 )
 
 var applyCmd = &cobra.Command{

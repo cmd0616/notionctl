@@ -1,7 +1,7 @@
 # notionctl
 
 [![CI](https://github.com/radityajay/notionctl/actions/workflows/ci.yml/badge.svg)](https://github.com/radityajay/notionctl/actions/workflows/ci.yml)
-[![Go Reference](https://pkg.go.dev/badge/github.com/radityajayantara/notionctl.svg)](https://pkg.go.dev/github.com/radityajayantara/notionctl)
+[![Go Reference](https://pkg.go.dev/badge/github.com/radityajay/notionctl.svg)](https://pkg.go.dev/github.com/radityajay/notionctl)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 Declarative Notion database management. Define your databases in YAML, sync them to Notion with one command.
@@ -29,7 +29,7 @@ databases:
 
 ```bash
 # Install
-go install github.com/radityajayantara/notionctl@latest
+go install github.com/radityajay/notionctl@latest
 
 # Create a starter config
 notionctl init

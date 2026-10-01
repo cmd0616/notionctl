@@ -8,7 +8,7 @@ import (
 
 // Set via ldflags at build time:
 //
-//	go build -ldflags "-X github.com/radityajayantara/notionctl/cmd.version=1.0.0"
+//	go build -ldflags "-X github.com/radityajay/notionctl/cmd.version=1.0.0"
 var version = "dev"
 
 var versionCmd = &cobra.Command{

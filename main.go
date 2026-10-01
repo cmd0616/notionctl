@@ -1,6 +1,6 @@
 package main
 
-import "github.com/radityajayantara/notionctl/cmd"
+import "github.com/radityajay/notionctl/cmd"
 
 func main() {
 	cmd.Execute()

@@ -8,7 +8,7 @@ import (
 )
 
 const initTemplate = `# notionctl configuration
-# Docs: https://github.com/radityajayantara/notionctl
+# Docs: https://github.com/radityajay/notionctl
 version: "1"
 
 databases:

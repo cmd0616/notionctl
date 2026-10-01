@@ -1,4 +1,4 @@
-module github.com/radityajayantara/notionctl
+module github.com/radityajay/notionctl
 
 go 1.22.12
 
