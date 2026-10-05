@@ -79,11 +79,11 @@ Want to add a template? See [CONTRIBUTING.md](CONTRIBUTING.md) — no Go require
 |------|-------------|--------------|
 | `title` | Database title column | — |
 | `rich_text` | Text content | — |
-| `last_edited_time` | Last edit timestamp (managed by Notion) | — |
 | `number` | Numeric values | `format` (dollar, percent, etc.) |
 | `select` | Single choice | `options` (name + color) |
 | `multi_select` | Multiple choices | `options` (name + color) |
 | `relation` | Link to another database | `relation` (target name), `synced_property` |
+| `last_edited_time` | Last edit timestamp (managed by Notion) | — |
 
 ## How It Works
 
