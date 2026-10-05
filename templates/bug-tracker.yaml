@@ -1,0 +1,183 @@
+# Bug Tracker template
+# Usage: cp templates/bug-tracker.yaml notionctl.yaml && notionctl plan
+version: "1"
+
+databases:
+  - name: Bugs
+    parent_page_id: "YOUR_PAGE_ID"
+    properties:
+      Name:
+        type: title
+      Description:
+        type: rich_text
+      Steps to Reproduce:
+        type: rich_text
+      Severity:
+        type: select
+        options:
+          - name: Blocker
+            color: red
+          - name: Critical
+            color: orange
+          - name: Major
+            color: yellow
+          - name: Minor
+            color: blue
+          - name: Trivial
+            color: gray
+      Priority:
+        type: select
+        options:
+          - name: P0
+            color: red
+          - name: P1
+            color: orange
+          - name: P2
+            color: yellow
+          - name: P3
+            color: gray
+      Status:
+        type: status
+        options:
+          - name: Triage
+            color: default
+          - name: Confirmed
+            color: yellow
+          - name: Reopened
+            color: orange
+          - name: In Progress
+            color: blue
+          - name: Fixed
+            color: green
+          - name: Verified
+            color: green
+          - name: Duplicate
+            color: gray
+          - name: Won't Fix
+            color: gray
+        groups:
+          - name: To-do
+            option_ids:
+              - Triage
+              - Confirmed
+              - Reopened
+          - name: In progress
+            option_ids:
+              - In Progress
+          - name: Complete
+            option_ids:
+              - Fixed
+              - Verified
+              - Duplicate
+              - Won't Fix
+      Environment:
+        type: select
+        options:
+          - name: Production
+            color: red
+          - name: Staging
+            color: yellow
+          - name: Development
+            color: blue
+      Tags:
+        type: multi_select
+        options:
+          - name: regression
+            color: red
+          - name: ui
+            color: purple
+          - name: backend
+            color: blue
+          - name: api
+            color: green
+          - name: performance
+            color: orange
+          - name: security
+            color: red
+          - name: flaky
+            color: yellow
+          - name: needs-info
+            color: gray
+      Reporter:
+        type: rich_text
+      Assignee:
+        type: rich_text
+      Closed:
+        type: checkbox
+      Regression:
+        type: checkbox
+      Reported:
+        type: created_time
+      Updated:
+        type: last_edited_time
+      Due Date:
+        type: date
+      Fixed Date:
+        type: date
+      days_open:
+        type: formula
+        expression: 'if(prop("Closed"), 0, dateBetween(now(), prop("Reported"), "days"))'
+      triage_state:
+        type: formula
+        expression: 'if(prop("Closed"), "Closed", "Open")'
+      component:
+        type: relation
+        relation: Components
+      release:
+        type: relation
+        relation: Releases
+
+  - name: Components
+    parent_page_id: "YOUR_PAGE_ID"
+    properties:
+      Name:
+        type: title
+      Description:
+        type: rich_text
+      Owner:
+        type: rich_text
+      bugs:
+        type: relation
+        relation: Bugs
+      bug_count:
+        type: rollup
+        relation: bugs
+        rollup_property: Name
+        function: count
+      open_bug_count:
+        type: rollup
+        relation: bugs
+        rollup_property: Closed
+        function: unchecked
+
+  - name: Releases
+    parent_page_id: "YOUR_PAGE_ID"
+    properties:
+      Name:
+        type: title
+      Status:
+        type: select
+        options:
+          - name: Planned
+            color: gray
+          - name: In Development
+            color: blue
+          - name: Released
+            color: green
+      Release Date:
+        type: date
+      Notes:
+        type: rich_text
+      bugs:
+        type: relation
+        relation: Bugs
+      bug_count:
+        type: rollup
+        relation: bugs
+        rollup_property: Name
+        function: count
+      fixed_percent:
+        type: rollup
+        relation: bugs
+        rollup_property: Closed
+        function: percent_checked

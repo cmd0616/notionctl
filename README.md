@@ -83,6 +83,7 @@ notionctl plan
 | [`crm.yaml`](templates/crm.yaml) | Contacts, Deals | Sales pipeline |
 | [`inventory.yaml`](templates/inventory.yaml) | Products, Suppliers | Stock management |
 | [`project-tracker.yaml`](templates/project-tracker.yaml) | Projects, Milestones, Tasks | Project management |
+| [`bug-tracker.yaml`](templates/bug-tracker.yaml) | Bugs, Components, Releases | Issue / defect tracking |
 
 Want to add a template? See [CONTRIBUTING.md](CONTRIBUTING.md) — no Go required!
 
