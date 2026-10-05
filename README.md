@@ -17,12 +17,22 @@ databases:
       tasks:
         type: relation
         relation: Tasks    # ← symbolic name, not a UUID
+      total_estimate:
+        type: rollup
+        relation: tasks           # ← relation property in this database
+        rollup_property: estimate  # ← property in Tasks database
+        function: sum
 
   - name: Tasks
     properties:
       project:
         type: relation
         relation: Projects  # ← two-way relation, by name
+      estimate:
+        type: number
+      double_estimate:
+        type: formula
+        expression: 'prop("estimate") * 2'
 ```
 
 ## Quick Start
@@ -88,6 +98,8 @@ Want to add a template? See [CONTRIBUTING.md](CONTRIBUTING.md) — no Go require
 | `url` | URL link | — |
 | `email` | Email address | — |
 | `phone_number` | Phone number | — |
+| `formula` | Computed value from expression | `expression` |
+| `rollup` | Aggregate through a relation | `relation`, `rollup_property`, `function` |
 | `status` | Kanban-style status | `options` (name + color), `groups` |
 | `created_time` | Creation timestamp (managed by Notion) | — |
 | `last_edited_time` | Last edit timestamp (managed by Notion) | — |
