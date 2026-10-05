@@ -67,6 +67,7 @@ Create a YAML file in `templates/` with a common use case:
 
 ```
 templates/
+  bug-tracker.yaml
   crm.yaml
   inventory.yaml
   project-tracker.yaml
