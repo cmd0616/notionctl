@@ -26,7 +26,7 @@ func TestSaveAndLoad(t *testing.T) {
 	st := &State{
 		Version: "1",
 		Databases: map[string]DatabaseState{
-			"Projects": {ID: "abc-123", Properties: map[string]string{"Name": "prop-1"}},
+			"Projects": {ID: "abc-123", Properties: map[string]PropertyState{"Name": {ID: "prop-1", Type: "title"}}},
 		},
 	}
 
@@ -55,8 +55,8 @@ func TestSaveAndLoad(t *testing.T) {
 	if db.ID != "abc-123" {
 		t.Errorf("expected ID abc-123, got %s", db.ID)
 	}
-	if db.Properties["Name"] != "prop-1" {
-		t.Errorf("expected property ID prop-1, got %s", db.Properties["Name"])
+	if db.Properties["Name"].ID != "prop-1" {
+		t.Errorf("expected property ID prop-1, got %s", db.Properties["Name"].ID)
 	}
 }
 
