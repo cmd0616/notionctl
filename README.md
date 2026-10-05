@@ -41,13 +41,15 @@ databases:
 # Install
 go install github.com/radityajay/notionctl@latest
 
-# Create a starter config
-notionctl init
-
-# Edit notionctl.yaml — set your page IDs and customize properties
-
 # Set your Notion integration token
 export NOTION_TOKEN="secret_..."
+
+# Option A: Start from scratch
+notionctl init
+# Edit notionctl.yaml — set your page IDs and customize properties
+
+# Option B: Import existing databases from a Notion page
+notionctl import --page-id YOUR_PAGE_ID
 
 # Preview changes
 notionctl plan
@@ -61,6 +63,7 @@ notionctl apply
 | Command | Description |
 |---------|-------------|
 | `notionctl init` | Generate starter `notionctl.yaml` |
+| `notionctl import` | Import existing Notion databases into config |
 | `notionctl plan` | Preview changes (diff config vs state) |
 | `notionctl apply` | Create/update databases in Notion |
 | `notionctl version` | Print version |
