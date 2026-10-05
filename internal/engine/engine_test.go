@@ -79,7 +79,12 @@ databases:
 	st := &state.State{
 		Version: "1",
 		Databases: map[string]state.DatabaseState{
-			"Projects": {ID: "existing-id", Properties: map[string]string{}},
+			"Projects": {
+				ID: "existing-id",
+				Properties: map[string]state.PropertyState{
+					"Name": {Type: "title"},
+				},
+			},
 		},
 	}
 	eng := New(cfg, st, nil, ".")
@@ -114,7 +119,12 @@ databases:
 	st := &state.State{
 		Version: "1",
 		Databases: map[string]state.DatabaseState{
-			"Projects": {ID: "existing-id", Properties: map[string]string{}},
+			"Projects": {
+				ID: "existing-id",
+				Properties: map[string]state.PropertyState{
+					"Name": {Type: "title"},
+				},
+			},
 		},
 	}
 	eng := New(cfg, st, nil, ".")
@@ -405,7 +415,12 @@ databases:
 	st := &state.State{
 		Version: "1",
 		Databases: map[string]state.DatabaseState{
-			"Projects": {ID: "existing-id"},
+			"Projects": {
+				ID: "existing-id",
+				Properties: map[string]state.PropertyState{
+					"Name": {Type: "title"},
+				},
+			},
 		},
 	}
 
@@ -416,5 +431,255 @@ databases:
 	}
 	if len(actions) != 0 {
 		t.Errorf("expected 0 actions, got %d", len(actions))
+	}
+}
+
+// TestPlan_DetectsNewProperty verifies plan detects when a new property is added.
+func TestPlan_DetectsNewProperty(t *testing.T) {
+	cfg := makeConfig(t, `
+version: "1"
+databases:
+  - name: Projects
+    properties:
+      Name:
+        type: title
+      Description:
+        type: rich_text
+`)
+
+	st := &state.State{
+		Version: "1",
+		Databases: map[string]state.DatabaseState{
+			"Projects": {
+				ID: "existing-id",
+				Properties: map[string]state.PropertyState{
+					"Name": {Type: "title"},
+				},
+			},
+		},
+	}
+	eng := New(cfg, st, nil, ".")
+
+	actions, err := eng.Plan()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(actions) != 1 {
+		t.Fatalf("expected 1 action, got %d", len(actions))
+	}
+	if actions[0].Type != "update" {
+		t.Errorf("expected update, got %s", actions[0].Type)
+	}
+
+	found := false
+	for _, d := range actions[0].Details {
+		if strings.Contains(d, "Description") && strings.Contains(d, "+") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected detail about new property Description, got %v", actions[0].Details)
+	}
+}
+
+// TestPlan_DetectsRemovedProperty verifies plan detects when a property is removed from YAML.
+func TestPlan_DetectsRemovedProperty(t *testing.T) {
+	cfg := makeConfig(t, `
+version: "1"
+databases:
+  - name: Projects
+    properties:
+      Name:
+        type: title
+`)
+
+	st := &state.State{
+		Version: "1",
+		Databases: map[string]state.DatabaseState{
+			"Projects": {
+				ID: "existing-id",
+				Properties: map[string]state.PropertyState{
+					"Name":        {Type: "title"},
+					"Description": {Type: "rich_text"},
+				},
+			},
+		},
+	}
+	eng := New(cfg, st, nil, ".")
+
+	actions, err := eng.Plan()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(actions) != 1 {
+		t.Fatalf("expected 1 action, got %d", len(actions))
+	}
+
+	found := false
+	for _, d := range actions[0].Details {
+		if strings.Contains(d, "Description") && strings.Contains(d, "removed") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected detail about removed property Description, got %v", actions[0].Details)
+	}
+}
+
+// TestPlan_DetectsTypeChange verifies plan detects when a property type changes.
+func TestPlan_DetectsTypeChange(t *testing.T) {
+	cfg := makeConfig(t, `
+version: "1"
+databases:
+  - name: Projects
+    properties:
+      Name:
+        type: title
+      Status:
+        type: status
+`)
+
+	st := &state.State{
+		Version: "1",
+		Databases: map[string]state.DatabaseState{
+			"Projects": {
+				ID: "existing-id",
+				Properties: map[string]state.PropertyState{
+					"Name":   {Type: "title"},
+					"Status": {Type: "select"},
+				},
+			},
+		},
+	}
+	eng := New(cfg, st, nil, ".")
+
+	actions, err := eng.Plan()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(actions) != 1 {
+		t.Fatalf("expected 1 action, got %d", len(actions))
+	}
+
+	found := false
+	for _, d := range actions[0].Details {
+		if strings.Contains(d, "Status") && strings.Contains(d, "select") && strings.Contains(d, "status") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected detail about type change select → status, got %v", actions[0].Details)
+	}
+}
+
+// TestApply_UpdateAddsNewProperty verifies apply sends update to Notion when property is added.
+func TestApply_UpdateAddsNewProperty(t *testing.T) {
+	server, log := mockNotionServer(t)
+	defer server.Close()
+
+	cfg := makeConfig(t, `
+version: "1"
+databases:
+  - name: Projects
+    properties:
+      Name:
+        type: title
+      Description:
+        type: rich_text
+`)
+
+	dir := t.TempDir()
+	st := &state.State{
+		Version: "1",
+		Databases: map[string]state.DatabaseState{
+			"Projects": {
+				ID: "existing-id",
+				Properties: map[string]state.PropertyState{
+					"Name": {Type: "title"},
+				},
+			},
+		},
+	}
+
+	client := notion.NewClientWithBase(server.URL+"/v1", "fake-token")
+	eng := New(cfg, st, client, dir)
+
+	actions, err := eng.Apply()
+	if err != nil {
+		t.Fatalf("apply error: %v", err)
+	}
+
+	if len(actions) != 1 {
+		t.Fatalf("expected 1 action, got %d", len(actions))
+	}
+	if actions[0].Type != "update" {
+		t.Errorf("expected update, got %s", actions[0].Type)
+	}
+
+	calls := log.all()
+	if len(calls) != 1 {
+		t.Fatalf("expected 1 API call, got %d", len(calls))
+	}
+	if calls[0].Method != "PATCH" {
+		t.Errorf("expected PATCH, got %s", calls[0].Method)
+	}
+
+	// Verify state now has both properties
+	savedState, err := state.Load(dir)
+	if err != nil {
+		t.Fatalf("failed to load state: %v", err)
+	}
+	props := savedState.GetDatabaseProperties("Projects")
+	if len(props) != 2 {
+		t.Errorf("expected 2 properties in state, got %d", len(props))
+	}
+	if props["Description"].Type != "rich_text" {
+		t.Errorf("expected Description type rich_text, got %s", props["Description"].Type)
+	}
+}
+
+// TestApply_CreateSavesPropertyState verifies that create saves property types to state.
+func TestApply_CreateSavesPropertyState(t *testing.T) {
+	server, _ := mockNotionServer(t)
+	defer server.Close()
+
+	cfg := makeConfig(t, `
+version: "1"
+databases:
+  - name: Notes
+    parent_page_id: "page-1"
+    properties:
+      Name:
+        type: title
+      Content:
+        type: rich_text
+      Done:
+        type: checkbox
+`)
+
+	dir := t.TempDir()
+	st := &state.State{Version: "1", Databases: map[string]state.DatabaseState{}}
+
+	client := notion.NewClientWithBase(server.URL+"/v1", "fake-token")
+	eng := New(cfg, st, client, dir)
+
+	_, err := eng.Apply()
+	if err != nil {
+		t.Fatalf("apply error: %v", err)
+	}
+
+	savedState, err := state.Load(dir)
+	if err != nil {
+		t.Fatalf("failed to load state: %v", err)
+	}
+	props := savedState.GetDatabaseProperties("Notes")
+	if len(props) != 3 {
+		t.Fatalf("expected 3 properties in state, got %d", len(props))
+	}
+	if props["Name"].Type != "title" {
+		t.Errorf("expected Name type title, got %s", props["Name"].Type)
+	}
+	if props["Done"].Type != "checkbox" {
+		t.Errorf("expected Done type checkbox, got %s", props["Done"].Type)
 	}
 }

@@ -57,15 +57,39 @@ func (e *Engine) Plan() ([]Action, error) {
 		}
 
 		// Existing database — check for property changes
-		// For v0.1, we detect new properties (additions).
-		// Full diff against Notion API state is a future enhancement.
 		var details []string
+		storedProps := e.state.GetDatabaseProperties(db.Name)
+
 		for name, prop := range db.Properties {
 			handler, err := property.Get(prop.Type)
 			if err != nil {
 				return nil, fmt.Errorf("database %q, property %q: %w", db.Name, name, err)
 			}
-			_ = handler // used for diff in future versions
+
+			stored, exists := storedProps[name]
+			if !exists {
+				// New property
+				details = append(details, fmt.Sprintf("+ property %q (%s)", name, prop.Type))
+				continue
+			}
+
+			if stored.Type != prop.Type {
+				// Type changed — warn, Notion may not support this
+				details = append(details, fmt.Sprintf("~ property %q: type %s → %s (may require manual migration)", name, stored.Type, prop.Type))
+				continue
+			}
+
+			// Same type — check config diff via handler
+			if diff := handler.DiffSummary(prop.Extra, map[string]interface{}{}); diff != "" {
+				details = append(details, fmt.Sprintf("~ property %q: %s", name, diff))
+			}
+		}
+
+		// Detect removed properties
+		for name := range storedProps {
+			if _, exists := db.Properties[name]; !exists {
+				details = append(details, fmt.Sprintf("- property %q (present in state but removed from YAML — will NOT be deleted from Notion)", name))
+			}
 		}
 
 		if len(details) > 0 {
@@ -131,6 +155,7 @@ func (e *Engine) Apply() ([]Action, error) {
 
 			// Update state immediately so other databases can reference this ID
 			e.state.SetDatabase(db.Name, id)
+			e.savePropertyState(db)
 			actions[i].Details = append(actions[i].Details, fmt.Sprintf("→ created with ID %s", id))
 
 			if hasRelations {
@@ -153,6 +178,7 @@ func (e *Engine) Apply() ([]Action, error) {
 				return nil, err
 			}
 
+			e.savePropertyState(db)
 			actions[i].Details = append(actions[i].Details, "→ updated")
 		}
 	}
@@ -265,6 +291,15 @@ func (e *Engine) findDatabase(name string) *config.Database {
 		}
 	}
 	return nil
+}
+
+// savePropertyState records the current property types from config into state.
+func (e *Engine) savePropertyState(db *config.Database) {
+	props := make(map[string]state.PropertyState, len(db.Properties))
+	for name, prop := range db.Properties {
+		props[name] = state.PropertyState{Type: prop.Type}
+	}
+	e.state.SetDatabaseProperties(db.Name, props)
 }
 
 // FormatPlan returns a human-readable plan output.

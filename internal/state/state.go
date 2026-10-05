@@ -29,8 +29,17 @@ type DatabaseState struct {
 	// ID is the Notion database UUID.
 	ID string `json:"id"`
 
-	// Properties maps property name → Notion property ID.
-	Properties map[string]string `json:"properties,omitempty"`
+	// Properties maps property name → property state info.
+	Properties map[string]PropertyState `json:"properties,omitempty"`
+}
+
+// PropertyState holds the state of a single property.
+type PropertyState struct {
+	// ID is the Notion property ID (if known).
+	ID string `json:"id,omitempty"`
+
+	// Type is the property type (e.g., "title", "select").
+	Type string `json:"type"`
 }
 
 // Path returns the full path to the state file relative to the given root.
@@ -89,8 +98,29 @@ func (s *State) ResolveDatabase(name string) (string, bool) {
 
 // SetDatabase records a database in state.
 func (s *State) SetDatabase(name, id string) {
+	if existing, ok := s.Databases[name]; ok {
+		existing.ID = id
+		s.Databases[name] = existing
+		return
+	}
 	s.Databases[name] = DatabaseState{
 		ID:         id,
-		Properties: map[string]string{},
+		Properties: map[string]PropertyState{},
 	}
+}
+
+// SetDatabaseProperties updates the property state for a database.
+func (s *State) SetDatabaseProperties(name string, props map[string]PropertyState) {
+	if db, ok := s.Databases[name]; ok {
+		db.Properties = props
+		s.Databases[name] = db
+	}
+}
+
+// GetDatabaseProperties returns the stored property states for a database.
+func (s *State) GetDatabaseProperties(name string) map[string]PropertyState {
+	if db, ok := s.Databases[name]; ok {
+		return db.Properties
+	}
+	return nil
 }
