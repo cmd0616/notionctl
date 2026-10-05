@@ -9,13 +9,15 @@ databases:
       Name:
         type: title
       Email:
-        type: rich_text
+        type: email
       Phone:
-        type: rich_text
+        type: phone_number
       Company:
         type: rich_text
+      Website:
+        type: url
       Status:
-        type: select
+        type: status
         options:
           - name: Lead
             color: gray
@@ -25,6 +27,21 @@ databases:
             color: green
           - name: Churned
             color: red
+        groups:
+          - name: To-do
+            option_ids:
+              - Lead
+          - name: In progress
+            option_ids:
+              - Prospect
+          - name: Complete
+            option_ids:
+              - Customer
+              - Churned
+      Last Contacted:
+        type: date
+      Updated:
+        type: last_edited_time
       deals:
         type: relation
         relation: Deals
@@ -50,6 +67,10 @@ databases:
             color: green
           - name: Closed Lost
             color: red
+      Close Date:
+        type: date
+      Created:
+        type: created_time
       contact:
         type: relation
         relation: Contacts

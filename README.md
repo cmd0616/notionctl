@@ -83,6 +83,13 @@ Want to add a template? See [CONTRIBUTING.md](CONTRIBUTING.md) — no Go require
 | `select` | Single choice | `options` (name + color) |
 | `multi_select` | Multiple choices | `options` (name + color) |
 | `relation` | Link to another database | `relation` (target name), `synced_property` |
+| `checkbox` | Boolean toggle | — |
+| `date` | Date or date range | — |
+| `url` | URL link | — |
+| `email` | Email address | — |
+| `phone_number` | Phone number | — |
+| `status` | Kanban-style status | `options` (name + color), `groups` |
+| `created_time` | Creation timestamp (managed by Notion) | — |
 | `last_edited_time` | Last edit timestamp (managed by Notion) | — |
 
 ## How It Works

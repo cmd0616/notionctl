@@ -5,7 +5,11 @@ import (
 )
 
 func TestAllCoreTypesRegistered(t *testing.T) {
-	expected := []string{"title", "rich_text", "number", "select", "multi_select", "relation"}
+	expected := []string{
+		"title", "rich_text", "number", "select", "multi_select", "relation",
+		"checkbox", "date", "url", "email", "phone_number",
+		"created_time", "last_edited_time", "status",
+	}
 	for _, typ := range expected {
 		if _, err := Get(typ); err != nil {
 			t.Errorf("expected %q to be registered: %v", typ, err)
@@ -96,7 +100,132 @@ func TestRelationToNotion_MissingTarget(t *testing.T) {
 
 func TestSupportedTypes(t *testing.T) {
 	types := SupportedTypes()
-	if len(types) < 6 {
-		t.Errorf("expected at least 6 types, got %d: %v", len(types), types)
+	if len(types) < 14 {
+		t.Errorf("expected at least 14 types, got %d: %v", len(types), types)
+	}
+}
+
+// --- Tests for new v0.2.0 property types ---
+
+func TestSimplePropertyTypes(t *testing.T) {
+	// These types all have empty config — just verify ToNotion returns the correct key.
+	simpleTypes := []string{"checkbox", "date", "url", "email", "phone_number", "created_time"}
+	for _, typ := range simpleTypes {
+		t.Run(typ, func(t *testing.T) {
+			p, err := Get(typ)
+			if err != nil {
+				t.Fatalf("Get(%q): %v", typ, err)
+			}
+			if p.Type() != typ {
+				t.Fatalf("expected Type() = %q, got %q", typ, p.Type())
+			}
+			cfg, err := p.ToNotion(nil)
+			if err != nil {
+				t.Fatalf("ToNotion(nil): %v", err)
+			}
+			if _, ok := cfg[typ]; !ok {
+				t.Errorf("expected %q key in config, got %v", typ, cfg)
+			}
+			if diff := p.DiffSummary(map[string]interface{}{}, map[string]interface{}{}); diff != "" {
+				t.Errorf("expected empty diff, got %q", diff)
+			}
+		})
+	}
+}
+
+func TestStatusToNotion_WithOptions(t *testing.T) {
+	p, _ := Get("status")
+	cfg, err := p.ToNotion(map[string]interface{}{
+		"options": []interface{}{
+			map[string]interface{}{"name": "Not Started", "color": "default"},
+			map[string]interface{}{"name": "In Progress", "color": "blue"},
+			map[string]interface{}{"name": "Done", "color": "green"},
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	statusCfg := cfg["status"].(map[string]interface{})
+	options := statusCfg["options"].([]map[string]interface{})
+	if len(options) != 3 {
+		t.Errorf("expected 3 options, got %d", len(options))
+	}
+}
+
+func TestStatusToNotion_WithGroups(t *testing.T) {
+	p, _ := Get("status")
+	cfg, err := p.ToNotion(map[string]interface{}{
+		"options": []interface{}{
+			map[string]interface{}{"name": "Not Started", "color": "default"},
+			map[string]interface{}{"name": "Done", "color": "green"},
+		},
+		"groups": []interface{}{
+			map[string]interface{}{
+				"name":       "To-do",
+				"option_ids": []interface{}{"Not Started"},
+			},
+			map[string]interface{}{
+				"name":       "Complete",
+				"option_ids": []interface{}{"Done"},
+			},
+		},
+	})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	statusCfg := cfg["status"].(map[string]interface{})
+	groups := statusCfg["groups"].([]map[string]interface{})
+	if len(groups) != 2 {
+		t.Errorf("expected 2 groups, got %d", len(groups))
+	}
+}
+
+func TestStatusToNotion_Empty(t *testing.T) {
+	p, _ := Get("status")
+	cfg, err := p.ToNotion(map[string]interface{}{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if _, ok := cfg["status"]; !ok {
+		t.Error("expected 'status' key in config")
+	}
+}
+
+func TestStatusDiffSummary(t *testing.T) {
+	p, _ := Get("status")
+	diff := p.DiffSummary(
+		map[string]interface{}{
+			"options": []interface{}{
+				map[string]interface{}{"name": "A"},
+				map[string]interface{}{"name": "B"},
+			},
+		},
+		map[string]interface{}{
+			"options": []interface{}{
+				map[string]interface{}{"name": "A"},
+			},
+		},
+	)
+	if diff == "" {
+		t.Error("expected non-empty diff when options differ")
+	}
+}
+
+func TestStatusDiffSummary_NoChange(t *testing.T) {
+	p, _ := Get("status")
+	diff := p.DiffSummary(
+		map[string]interface{}{
+			"options": []interface{}{
+				map[string]interface{}{"name": "X"},
+			},
+		},
+		map[string]interface{}{
+			"options": []interface{}{
+				map[string]interface{}{"name": "X"},
+			},
+		},
+	)
+	if diff != "" {
+		t.Errorf("expected empty diff, got %q", diff)
 	}
 }

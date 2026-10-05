@@ -20,7 +20,7 @@ databases:
       Description:
         type: rich_text
       Status:
-        type: select
+        type: status
         options:
           - name: Not Started
             color: red
@@ -28,6 +28,22 @@ databases:
             color: yellow
           - name: Done
             color: green
+        groups:
+          - name: To-do
+            option_ids:
+              - Not Started
+          - name: In progress
+            option_ids:
+              - In Progress
+          - name: Complete
+            option_ids:
+              - Done
+      Start Date:
+        type: date
+      Website:
+        type: url
+      Updated:
+        type: last_edited_time
       tasks:
         type: relation
         relation: Tasks
@@ -40,6 +56,10 @@ databases:
       Priority:
         type: number
         format: number
+      Done:
+        type: checkbox
+      Due Date:
+        type: date
       Tags:
         type: multi_select
         options:
@@ -49,6 +69,8 @@ databases:
             color: blue
           - name: docs
             color: gray
+      Assignee Email:
+        type: email
       project:
         type: relation
         relation: Projects

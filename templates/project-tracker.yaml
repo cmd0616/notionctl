@@ -14,7 +14,7 @@ databases:
         type: number
         format: dollar
       Status:
-        type: select
+        type: status
         options:
           - name: Planning
             color: gray
@@ -26,6 +26,22 @@ databases:
             color: blue
           - name: Cancelled
             color: red
+        groups:
+          - name: To-do
+            option_ids:
+              - Planning
+          - name: In progress
+            option_ids:
+              - Active
+              - On Hold
+          - name: Complete
+            option_ids:
+              - Completed
+              - Cancelled
+      Start Date:
+        type: date
+      Updated:
+        type: last_edited_time
       milestones:
         type: relation
         relation: Milestones
@@ -47,6 +63,8 @@ databases:
             color: yellow
           - name: Reached
             color: green
+      Target Date:
+        type: date
       project:
         type: relation
         relation: Projects
@@ -70,7 +88,7 @@ databases:
           - name: Critical
             color: red
       Status:
-        type: select
+        type: status
         options:
           - name: To Do
             color: default
@@ -78,6 +96,20 @@ databases:
             color: blue
           - name: Done
             color: green
+        groups:
+          - name: To-do
+            option_ids:
+              - To Do
+          - name: In progress
+            option_ids:
+              - In Progress
+          - name: Complete
+            option_ids:
+              - Done
+      Due Date:
+        type: date
+      Done:
+        type: checkbox
       Tags:
         type: multi_select
         options:

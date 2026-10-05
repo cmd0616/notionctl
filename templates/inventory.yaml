@@ -41,6 +41,10 @@ databases:
       supplier:
         type: relation
         relation: Suppliers
+      Discontinued:
+        type: checkbox
+      Updated:
+        type: last_edited_time
 
   - name: Suppliers
     parent_page_id: "YOUR_PAGE_ID"
@@ -49,6 +53,12 @@ databases:
         type: title
       Contact:
         type: rich_text
+      Email:
+        type: email
+      Phone:
+        type: phone_number
+      Website:
+        type: url
       Region:
         type: select
         options:
