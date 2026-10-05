@@ -41,6 +41,9 @@ databases:
       supplier:
         type: relation
         relation: Suppliers
+      Total Value:
+        type: formula
+        expression: 'prop("Price") * prop("Quantity")'
       Discontinued:
         type: checkbox
       Updated:
@@ -71,3 +74,8 @@ databases:
       products:
         type: relation
         relation: Products
+      product_count:
+        type: rollup
+        relation: products
+        rollup_property: Name
+        function: count
