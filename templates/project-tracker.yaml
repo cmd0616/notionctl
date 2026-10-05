@@ -48,6 +48,16 @@ databases:
       tasks:
         type: relation
         relation: Tasks
+      total_estimate:
+        type: rollup
+        relation: tasks
+        rollup_property: Estimate
+        function: sum
+      task_count:
+        type: rollup
+        relation: tasks
+        rollup_property: Name
+        function: count
 
   - name: Milestones
     parent_page_id: "YOUR_PAGE_ID"
@@ -121,6 +131,11 @@ databases:
             color: gray
           - name: design
             color: purple
+      Estimate:
+        type: number
+      double_estimate:
+        type: formula
+        expression: 'prop("Estimate") * 2'
       project:
         type: relation
         relation: Projects

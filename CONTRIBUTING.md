@@ -53,19 +53,13 @@ The `init()` function auto-registers your type. No other files need to change.
 
 ### Available Property Types to Add
 
-Check the [Notion API docs](https://developers.notion.com/reference/property-object) for the full list. Some good ones:
+All core Notion property types are already implemented. Check the [Notion API docs](https://developers.notion.com/reference/property-object) for any new types that Notion may add in the future. Some types that could still be contributed:
 
 | Type | Difficulty | Notes |
 |------|-----------|-------|
-| `checkbox` | Easy | No config needed |
-| `date` | Easy | No config needed |
-| `url` | Easy | No config needed |
-| `email` | Easy | No config needed |
-| `phone_number` | Easy | No config needed |
-| `created_time` | Easy | Read-only in Notion |
-| `last_edited_time` | Easy | Read-only in Notion |
-| `formula` | Medium | Needs `expression` config |
-| `rollup` | Hard | Needs relation + property + function config |
+| `people` | Easy | No config needed |
+| `files` | Easy | No config needed |
+| `unique_id` | Easy | `prefix` config |
 
 ## Add a YAML Template (No Go Required!)
 

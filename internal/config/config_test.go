@@ -262,3 +262,218 @@ databases:
 		t.Fatal("expected error for groups not being a list")
 	}
 }
+
+// --- Formula config validation tests ---
+
+func TestParse_FormulaValid(t *testing.T) {
+	yaml := `
+version: "1"
+databases:
+  - name: Test
+    properties:
+      Name:
+        type: title
+      DoubleEstimate:
+        type: formula
+        expression: 'prop("Estimate") * 2'
+`
+	_, err := Parse([]byte(yaml))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestParse_FormulaMissingExpression(t *testing.T) {
+	yaml := `
+version: "1"
+databases:
+  - name: Test
+    properties:
+      Name:
+        type: title
+      Calc:
+        type: formula
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error for formula missing expression")
+	}
+}
+
+// --- Rollup config validation tests ---
+
+func TestParse_RollupValid(t *testing.T) {
+	yaml := `
+version: "1"
+databases:
+  - name: Projects
+    properties:
+      Name:
+        type: title
+      tasks:
+        type: relation
+        relation: Tasks
+      total_estimate:
+        type: rollup
+        relation: tasks
+        rollup_property: estimate
+        function: sum
+
+  - name: Tasks
+    properties:
+      Name:
+        type: title
+      estimate:
+        type: number
+      project:
+        type: relation
+        relation: Projects
+`
+	_, err := Parse([]byte(yaml))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestParse_RollupMissingRelation(t *testing.T) {
+	yaml := `
+version: "1"
+databases:
+  - name: Test
+    properties:
+      Name:
+        type: title
+      total:
+        type: rollup
+        rollup_property: estimate
+        function: sum
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error for rollup missing relation")
+	}
+}
+
+func TestParse_RollupMissingRollupProperty(t *testing.T) {
+	yaml := `
+version: "1"
+databases:
+  - name: Projects
+    properties:
+      Name:
+        type: title
+      tasks:
+        type: relation
+        relation: Tasks
+      total:
+        type: rollup
+        relation: tasks
+        function: sum
+
+  - name: Tasks
+    properties:
+      Name:
+        type: title
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error for rollup missing rollup_property")
+	}
+}
+
+func TestParse_RollupMissingFunction(t *testing.T) {
+	yaml := `
+version: "1"
+databases:
+  - name: Projects
+    properties:
+      Name:
+        type: title
+      tasks:
+        type: relation
+        relation: Tasks
+      total:
+        type: rollup
+        relation: tasks
+        rollup_property: estimate
+
+  - name: Tasks
+    properties:
+      Name:
+        type: title
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error for rollup missing function")
+	}
+}
+
+func TestParse_RollupInvalidFunction(t *testing.T) {
+	yaml := `
+version: "1"
+databases:
+  - name: Projects
+    properties:
+      Name:
+        type: title
+      tasks:
+        type: relation
+        relation: Tasks
+      total:
+        type: rollup
+        relation: tasks
+        rollup_property: estimate
+        function: not_real
+
+  - name: Tasks
+    properties:
+      Name:
+        type: title
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error for rollup invalid function")
+	}
+}
+
+func TestParse_RollupRelationNotARelationProperty(t *testing.T) {
+	yaml := `
+version: "1"
+databases:
+  - name: Test
+    properties:
+      Name:
+        type: title
+      description:
+        type: rich_text
+      total:
+        type: rollup
+        relation: description
+        rollup_property: estimate
+        function: sum
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error when rollup relation points to non-relation property")
+	}
+}
+
+func TestParse_RollupRelationPropertyNotFound(t *testing.T) {
+	yaml := `
+version: "1"
+databases:
+  - name: Test
+    properties:
+      Name:
+        type: title
+      total:
+        type: rollup
+        relation: nonexistent
+        rollup_property: estimate
+        function: sum
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error when rollup relation property does not exist")
+	}
+}

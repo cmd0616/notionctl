@@ -137,6 +137,20 @@ func (c *Config) Validate() error {
 		}
 	}
 
+	// Validate rollup references — the 'relation' field must point to a
+	// relation property in the same database.
+	for _, db := range c.Databases {
+		for propName, prop := range db.Properties {
+			if prop.Type == "rollup" {
+				relRef := fmt.Sprintf("%v", prop.Extra["relation"])
+				relProp, exists := db.Properties[relRef]
+				if !exists || relProp.Type != "relation" {
+					return fmt.Errorf("database %q, property %q: rollup 'relation' must refer to a relation property in this database, %q is not a relation", db.Name, propName, relRef)
+				}
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -189,6 +203,27 @@ func validatePropertyConfig(dbName, propName string, prop PropertyDef) error {
 				if _, ok := m["name"]; !ok {
 					return fmt.Errorf("database %q, property %q: option %d missing 'name'", dbName, propName, i+1)
 				}
+			}
+		}
+
+	case "formula":
+		if _, ok := prop.Extra["expression"]; !ok {
+			return fmt.Errorf("database %q, property %q: formula requires 'expression' field", dbName, propName)
+		}
+
+	case "rollup":
+		if _, ok := prop.Extra["relation"]; !ok {
+			return fmt.Errorf("database %q, property %q: rollup requires 'relation' field", dbName, propName)
+		}
+		if _, ok := prop.Extra["rollup_property"]; !ok {
+			return fmt.Errorf("database %q, property %q: rollup requires 'rollup_property' field", dbName, propName)
+		}
+		if fn, ok := prop.Extra["function"]; !ok {
+			return fmt.Errorf("database %q, property %q: rollup requires 'function' field", dbName, propName)
+		} else {
+			fnStr := fmt.Sprintf("%v", fn)
+			if !property.ValidRollupFunctions[fnStr] {
+				return fmt.Errorf("database %q, property %q: unknown rollup function %q", dbName, propName, fnStr)
 			}
 		}
 

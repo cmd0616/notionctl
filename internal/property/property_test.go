@@ -9,6 +9,7 @@ func TestAllCoreTypesRegistered(t *testing.T) {
 		"title", "rich_text", "number", "select", "multi_select", "relation",
 		"checkbox", "date", "url", "email", "phone_number",
 		"created_time", "last_edited_time", "status",
+		"formula", "rollup",
 	}
 	for _, typ := range expected {
 		if _, err := Get(typ); err != nil {
@@ -100,8 +101,8 @@ func TestRelationToNotion_MissingTarget(t *testing.T) {
 
 func TestSupportedTypes(t *testing.T) {
 	types := SupportedTypes()
-	if len(types) < 14 {
-		t.Errorf("expected at least 14 types, got %d: %v", len(types), types)
+	if len(types) < 16 {
+		t.Errorf("expected at least 16 types, got %d: %v", len(types), types)
 	}
 }
 

@@ -45,6 +45,16 @@ databases:
       deals:
         type: relation
         relation: Deals
+      total_deal_value:
+        type: rollup
+        relation: deals
+        rollup_property: Value
+        function: sum
+      deal_count:
+        type: rollup
+        relation: deals
+        rollup_property: Name
+        function: count
 
   - name: Deals
     parent_page_id: "YOUR_PAGE_ID"
