@@ -2,6 +2,9 @@ package config
 
 import (
 	"testing"
+
+	// Register property types for validation tests.
+	_ "github.com/radityajay/notionctl/internal/property"
 )
 
 func TestParse_ValidConfig(t *testing.T) {
@@ -132,5 +135,130 @@ databases:
 	names := cfg.DatabaseNames()
 	if len(names) != 2 || names[0] != "A" || names[1] != "B" {
 		t.Errorf("unexpected names: %v", names)
+	}
+}
+
+func TestParse_UnknownPropertyType(t *testing.T) {
+	yaml := `
+version: "1"
+databases:
+  - name: Test
+    properties:
+      Name:
+        type: title
+      Status:
+        type: selec
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error for unknown property type 'selec'")
+	}
+}
+
+func TestParse_MultipleTitles(t *testing.T) {
+	yaml := `
+version: "1"
+databases:
+  - name: Test
+    properties:
+      Name:
+        type: title
+      AnotherTitle:
+        type: title
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error for multiple title properties")
+	}
+}
+
+func TestParse_InvalidNumberFormat(t *testing.T) {
+	yaml := `
+version: "1"
+databases:
+  - name: Test
+    properties:
+      Name:
+        type: title
+      Price:
+        type: number
+        format: dolars
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error for invalid number format 'dolars'")
+	}
+}
+
+func TestParse_ValidNumberFormat(t *testing.T) {
+	yaml := `
+version: "1"
+databases:
+  - name: Test
+    properties:
+      Name:
+        type: title
+      Price:
+        type: number
+        format: dollar
+`
+	_, err := Parse([]byte(yaml))
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestParse_SelectOptionsMustBeList(t *testing.T) {
+	yaml := `
+version: "1"
+databases:
+  - name: Test
+    properties:
+      Name:
+        type: title
+      Status:
+        type: select
+        options: "not a list"
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error for options not being a list")
+	}
+}
+
+func TestParse_SelectOptionMissingName(t *testing.T) {
+	yaml := `
+version: "1"
+databases:
+  - name: Test
+    properties:
+      Name:
+        type: title
+      Status:
+        type: select
+        options:
+          - color: red
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error for select option missing name")
+	}
+}
+
+func TestParse_StatusGroupsMustBeList(t *testing.T) {
+	yaml := `
+version: "1"
+databases:
+  - name: Test
+    properties:
+      Name:
+        type: title
+      Status:
+        type: status
+        groups: "not a list"
+`
+	_, err := Parse([]byte(yaml))
+	if err == nil {
+		t.Fatal("expected error for groups not being a list")
 	}
 }
