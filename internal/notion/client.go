@@ -97,6 +97,47 @@ func (c *Client) GetDatabase(databaseID string) (map[string]interface{}, error) 
 	return resp, nil
 }
 
+// ListBlockChildren retrieves child blocks of a page/block.
+// Handles pagination automatically and returns all children.
+func (c *Client) ListBlockChildren(blockID string) ([]map[string]interface{}, error) {
+	var all []map[string]interface{}
+	cursor := ""
+
+	for {
+		path := "/blocks/" + blockID + "/children?page_size=100"
+		if cursor != "" {
+			path += "&start_cursor=" + cursor
+		}
+
+		resp, err := c.do("GET", path, nil)
+		if err != nil {
+			return nil, fmt.Errorf("listing children of %s: %w", blockID, err)
+		}
+
+		results, ok := resp["results"].([]interface{})
+		if !ok {
+			break
+		}
+		for _, r := range results {
+			if m, ok := r.(map[string]interface{}); ok {
+				all = append(all, m)
+			}
+		}
+
+		hasMore, _ := resp["has_more"].(bool)
+		if !hasMore {
+			break
+		}
+		next, _ := resp["next_cursor"].(string)
+		if next == "" {
+			break
+		}
+		cursor = next
+	}
+
+	return all, nil
+}
+
 func (c *Client) do(method, path string, body interface{}) (map[string]interface{}, error) {
 	var reqBody io.Reader
 	if body != nil {
