@@ -1,0 +1,44 @@
+# Sync Notion databases on push to main
+# Triggers when notionctl.yaml changes and auto-applies to Notion.
+#
+# Setup:
+# 1. Add NOTION_TOKEN to repo secrets
+# 2. Copy this file to .github/workflows/notion-sync.yml
+name: Sync Notion Databases
+
+on:
+  push:
+    branches: [main]
+    paths: ['notionctl.yaml']
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - run: go install github.com/radityajay/notionctl@latest
+
+      - name: Plan changes
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: notionctl plan
+
+      - name: Apply changes
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: notionctl apply --auto-approve
+
+      - name: Commit updated state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .notionctl/state.json
+          git diff --staged --quiet || git commit -m "chore: update notionctl state"
+          git push

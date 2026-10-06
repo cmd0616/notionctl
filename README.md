@@ -120,8 +120,96 @@ Want to add a template? See [CONTRIBUTING.md](CONTRIBUTING.md) — no Go require
 1. **Write YAML** — Declare databases with properties and relations by name
 2. **`notionctl plan`** — Compares your YAML against local state (`.notionctl/state.json`)
 3. **`notionctl apply`** — Creates/updates databases via Notion API, saves state
+4. **`notionctl diff`** — Fetches remote databases and detects drift from manual edits
+
+### Example: `notionctl plan`
+
+```
+Plan: 2 action(s)
+
++ create "Projects"
+    parent_page_id: abc123
+    + property "Name" (title)
+    + property "Status" (status)
+    + property "tasks" (relation)
+
++ create "Tasks"
+    parent_page_id: abc123
+    + property "Name" (title)
+    + property "project" (relation)
+    + property "estimate" (number)
+
+Applying...
+
+✓ create "Projects"
+  → created with ID 1a2b3c
+  → relations linked
+✓ create "Tasks"
+  → created with ID 4d5e6f
+  → relations linked
+
+Done. State saved to .notionctl/state.json
+```
+
+### Example: `notionctl diff`
+
+```
+✓ "Projects" — in sync
+
+⚠ "Tasks" — drifted
+    + property "Priority" (select): in config but not in Notion
+    - property "OldField" (rich_text): in Notion but not in config
+    ~ property "estimate": format config=dollar remote=number
+
+○ "Archive" — not deployed
+```
 
 State is stored in `.notionctl/state.json` (add to `.gitignore` — it contains workspace-specific IDs).
+
+## CI/CD with GitHub Actions
+
+Automate your Notion database management in CI:
+
+```yaml
+# .github/workflows/notion-sync.yml
+name: Sync Notion Databases
+on:
+  push:
+    branches: [main]
+    paths: ['notionctl.yaml']
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - run: go install github.com/radityajay/notionctl@latest
+
+      - name: Plan changes
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: notionctl plan
+
+      - name: Apply changes
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: notionctl apply --auto-approve
+
+      - name: Commit updated state
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .notionctl/state.json
+          git diff --staged --quiet || git commit -m "chore: update notionctl state"
+          git push
+```
+
+See [`examples/`](examples/) for more CI/CD configurations.
 
 ## Contributing
 

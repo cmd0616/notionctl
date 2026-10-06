@@ -1,0 +1,57 @@
+# Scheduled drift detection
+# Runs daily and checks if Notion databases have drifted from config.
+# Posts a comment on an issue if drift is detected.
+#
+# Setup:
+# 1. Add NOTION_TOKEN to repo secrets
+# 2. Create an issue for drift alerts (update DRIFT_ISSUE_NUMBER below)
+# 3. Copy this file to .github/workflows/notion-drift.yml
+name: Notion Drift Detection
+
+on:
+  schedule:
+    - cron: '0 9 * * 1-5'  # weekdays at 9am UTC
+  workflow_dispatch:         # allow manual trigger
+
+env:
+  DRIFT_ISSUE_NUMBER: 1     # change to your drift tracking issue number
+
+jobs:
+  drift-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.21'
+
+      - run: go install github.com/radityajay/notionctl@latest
+
+      - name: Check for drift
+        id: diff
+        env:
+          NOTION_TOKEN: ${{ secrets.NOTION_TOKEN }}
+        run: |
+          OUTPUT=$(notionctl diff 2>&1)
+          echo "$OUTPUT"
+          if echo "$OUTPUT" | grep -q "drifted"; then
+            echo "drifted=true" >> "$GITHUB_OUTPUT"
+            echo "$OUTPUT" > drift-report.txt
+          else
+            echo "drifted=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Comment on issue if drifted
+        if: steps.diff.outputs.drifted == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          BODY=$(cat drift-report.txt)
+          gh issue comment "$DRIFT_ISSUE_NUMBER" --body "## ⚠️ Notion Drift Detected
+
+          \`\`\`
+          $BODY
+          \`\`\`
+
+          Run \`notionctl apply\` to sync, or update your YAML to match Notion."
