@@ -68,6 +68,7 @@ notionctl apply
 | `notionctl apply` | Create/update/destroy databases in Notion |
 | `notionctl apply --auto-approve` | Skip confirmation prompts for destructive actions |
 | `notionctl diff` | Compare remote Notion databases against local config |
+| `notionctl sync` | Pull current Notion state back into config YAML |
 | `notionctl validate` | Validate config syntax without connecting to Notion |
 | `notionctl version` | Print version |
 

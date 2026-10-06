@@ -9,6 +9,7 @@ import (
 
 	"github.com/radityajay/notionctl/internal/config"
 	"github.com/radityajay/notionctl/internal/notion"
+	"github.com/radityajay/notionctl/internal/state"
 	// Register property types for config validation
 	_ "github.com/radityajay/notionctl/internal/property"
 )
@@ -593,5 +594,148 @@ func TestMarshalYAML_Roundtrip(t *testing.T) {
 	yaml := string(data)
 	if !strings.Contains(yaml, "dollar") {
 		t.Error("expected number format 'dollar' in YAML output")
+	}
+}
+
+func TestFromState_Basic(t *testing.T) {
+	databases := map[string]map[string]interface{}{
+		"db-001": {
+			"id": "db-001",
+			"title": []interface{}{
+				map[string]interface{}{"plain_text": "Projects"},
+			},
+			"properties": map[string]interface{}{
+				"Name": map[string]interface{}{
+					"id": "title", "type": "title", "title": map[string]interface{}{},
+				},
+				"Status": map[string]interface{}{
+					"id": "st1", "type": "checkbox", "checkbox": map[string]interface{}{},
+				},
+			},
+		},
+	}
+
+	srv := mockServer(nil, databases)
+	defer srv.Close()
+
+	client := notion.NewClientWithBase(srv.URL+"/v1", "test-token")
+	imp := New(client)
+
+	existingCfg := &config.Config{
+		Version: "1",
+		Databases: []config.Database{
+			{Name: "Projects", ParentPageID: "page-123"},
+		},
+	}
+	existingSt := &state.State{
+		Version: "1",
+		Databases: map[string]state.DatabaseState{
+			"Projects": {ID: "db-001"},
+		},
+	}
+
+	result, err := imp.FromState(existingCfg, existingSt)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	if len(result.Config.Databases) != 1 {
+		t.Fatalf("expected 1 database, got %d", len(result.Config.Databases))
+	}
+
+	db := result.Config.Databases[0]
+	if db.Name != "Projects" {
+		t.Errorf("expected name 'Projects', got %q", db.Name)
+	}
+	if db.ParentPageID != "page-123" {
+		t.Errorf("expected parent_page_id 'page-123', got %q", db.ParentPageID)
+	}
+	if _, ok := db.Properties["Name"]; !ok {
+		t.Error("expected 'Name' property")
+	}
+	if _, ok := db.Properties["Status"]; !ok {
+		t.Error("expected 'Status' property")
+	}
+}
+
+func TestFromState_EmptyState(t *testing.T) {
+	client := notion.NewClientWithBase("http://localhost", "token")
+	imp := New(client)
+
+	existingCfg := &config.Config{Version: "1"}
+	emptySt := &state.State{Version: "1", Databases: map[string]state.DatabaseState{}}
+
+	_, err := imp.FromState(existingCfg, emptySt)
+	if err == nil {
+		t.Fatal("expected error for empty state")
+	}
+	if !strings.Contains(err.Error(), "no databases in state") {
+		t.Errorf("expected 'no databases in state' error, got: %v", err)
+	}
+}
+
+func TestFromState_PreservesParentPageID(t *testing.T) {
+	databases := map[string]map[string]interface{}{
+		"db-A": {
+			"id": "db-A",
+			"title": []interface{}{
+				map[string]interface{}{"plain_text": "Alpha"},
+			},
+			"properties": map[string]interface{}{
+				"Name": map[string]interface{}{
+					"id": "title", "type": "title", "title": map[string]interface{}{},
+				},
+			},
+		},
+		"db-B": {
+			"id": "db-B",
+			"title": []interface{}{
+				map[string]interface{}{"plain_text": "Beta"},
+			},
+			"properties": map[string]interface{}{
+				"Name": map[string]interface{}{
+					"id": "title", "type": "title", "title": map[string]interface{}{},
+				},
+			},
+		},
+	}
+
+	srv := mockServer(nil, databases)
+	defer srv.Close()
+
+	client := notion.NewClientWithBase(srv.URL+"/v1", "test-token")
+	imp := New(client)
+
+	existingCfg := &config.Config{
+		Version: "1",
+		Databases: []config.Database{
+			{Name: "Alpha", ParentPageID: "page-aaa"},
+			{Name: "Beta", ParentPageID: "page-bbb"},
+		},
+	}
+	existingSt := &state.State{
+		Version: "1",
+		Databases: map[string]state.DatabaseState{
+			"Alpha": {ID: "db-A"},
+			"Beta":  {ID: "db-B"},
+		},
+	}
+
+	result, err := imp.FromState(existingCfg, existingSt)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, db := range result.Config.Databases {
+		switch db.Name {
+		case "Alpha":
+			if db.ParentPageID != "page-aaa" {
+				t.Errorf("Alpha: expected parent 'page-aaa', got %q", db.ParentPageID)
+			}
+		case "Beta":
+			if db.ParentPageID != "page-bbb" {
+				t.Errorf("Beta: expected parent 'page-bbb', got %q", db.ParentPageID)
+			}
+		}
 	}
 }
