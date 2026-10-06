@@ -38,8 +38,14 @@ databases:
 ## Quick Start
 
 ```bash
-# Install
+# Install via Homebrew (macOS/Linux)
+brew install radityajay/tap/notionctl
+
+# Or install via Go
 go install github.com/radityajay/notionctl@latest
+
+# Or download binary from GitHub Releases
+# https://github.com/radityajay/notionctl/releases
 
 # Set your Notion integration token
 export NOTION_TOKEN="secret_..."
