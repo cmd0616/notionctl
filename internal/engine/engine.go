@@ -13,17 +13,18 @@ import (
 
 // Action represents a planned change.
 type Action struct {
-	Type         string // "create" or "update"
+	Type         string // "create", "update", or "destroy"
 	DatabaseName string
 	Details      []string // human-readable list of changes
 }
 
 // Engine coordinates planning and applying changes.
 type Engine struct {
-	config *config.Config
-	state  *state.State
-	client *notion.Client
-	root   string
+	config         *config.Config
+	state          *state.State
+	client         *notion.Client
+	root           string
+	confirmDestroy func(name, id string) bool // callback to confirm destroy actions
 }
 
 // New creates a new engine.
@@ -34,6 +35,12 @@ func New(cfg *config.Config, st *state.State, client *notion.Client, root string
 		client: client,
 		root:   root,
 	}
+}
+
+// SetConfirmDestroy sets the callback used to confirm destroy actions.
+// If nil, destroy actions are skipped.
+func (e *Engine) SetConfirmDestroy(fn func(name, id string) bool) {
+	e.confirmDestroy = fn
 }
 
 // Plan computes the diff between desired config and current state.
@@ -97,6 +104,21 @@ func (e *Engine) Plan() ([]Action, error) {
 				Type:         "update",
 				DatabaseName: db.Name,
 				Details:      details,
+			})
+		}
+	}
+
+	// Detect databases in state but not in config → destroy
+	configNames := map[string]bool{}
+	for _, db := range e.config.Databases {
+		configNames[db.Name] = true
+	}
+	for name, dbState := range e.state.Databases {
+		if !configNames[name] {
+			actions = append(actions, Action{
+				Type:         "destroy",
+				DatabaseName: name,
+				Details:      []string{fmt.Sprintf("database ID: %s (will be archived in Notion)", dbState.ID)},
 			})
 		}
 	}
@@ -199,6 +221,26 @@ func (e *Engine) Apply() ([]Action, error) {
 			}
 			actions[p.index].Details = append(actions[p.index].Details, "→ relations linked")
 		}
+	}
+
+	// --- Pass 3: Destroy databases in state but not in config ---
+	for i, action := range actions {
+		if action.Type != "destroy" {
+			continue
+		}
+		dbID, exists := e.state.ResolveDatabase(action.DatabaseName)
+		if !exists {
+			continue
+		}
+		if e.confirmDestroy != nil && !e.confirmDestroy(action.DatabaseName, dbID) {
+			actions[i].Details = append(actions[i].Details, "→ skipped (user declined)")
+			continue
+		}
+		if err := e.client.ArchiveDatabase(dbID); err != nil {
+			return nil, fmt.Errorf("archiving database %q: %w", action.DatabaseName, err)
+		}
+		e.state.RemoveDatabase(action.DatabaseName)
+		actions[i].Details = append(actions[i].Details, "→ archived")
 	}
 
 	// Save state after all operations
@@ -315,6 +357,8 @@ func FormatPlan(actions []Action) string {
 		icon := "+"
 		if a.Type == "update" {
 			icon = "~"
+		} else if a.Type == "destroy" {
+			icon = "-"
 		}
 		b.WriteString(fmt.Sprintf("%s %s %q\n", icon, a.Type, a.DatabaseName))
 		for _, d := range a.Details {

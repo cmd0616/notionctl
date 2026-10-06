@@ -65,8 +65,11 @@ notionctl apply
 | `notionctl init` | Generate starter `notionctl.yaml` |
 | `notionctl import` | Import existing Notion databases into config |
 | `notionctl plan` | Preview changes (diff config vs state) |
-| `notionctl apply` | Create/update databases in Notion |
+| `notionctl apply` | Create/update/destroy databases in Notion |
+| `notionctl apply --auto-approve` | Skip confirmation prompts for destructive actions |
 | `notionctl version` | Print version |
+
+Databases removed from your YAML but still in state will be shown as **destroy** actions in `plan`. On `apply`, each destroy prompts for confirmation (archives the database in Notion).
 
 ## Templates
 

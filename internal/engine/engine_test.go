@@ -683,3 +683,288 @@ databases:
 		t.Errorf("expected Done type checkbox, got %s", props["Done"].Type)
 	}
 }
+
+func TestPlan_DetectsDestroyAction(t *testing.T) {
+	cfg := makeConfig(t, `
+version: "1"
+databases:
+  - name: Projects
+    properties:
+      Name:
+        type: title
+`)
+	st := &state.State{
+		Version: "1",
+		Databases: map[string]state.DatabaseState{
+			"Projects": {
+				ID:         "proj-id",
+				Properties: map[string]state.PropertyState{"Name": {Type: "title"}},
+			},
+			"OldDatabase": {
+				ID:         "old-id",
+				Properties: map[string]state.PropertyState{"Name": {Type: "title"}},
+			},
+		},
+	}
+	eng := New(cfg, st, nil, ".")
+
+	actions, err := eng.Plan()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	var destroyActions []Action
+	for _, a := range actions {
+		if a.Type == "destroy" {
+			destroyActions = append(destroyActions, a)
+		}
+	}
+	if len(destroyActions) != 1 {
+		t.Fatalf("expected 1 destroy action, got %d", len(destroyActions))
+	}
+	if destroyActions[0].DatabaseName != "OldDatabase" {
+		t.Errorf("expected OldDatabase, got %s", destroyActions[0].DatabaseName)
+	}
+}
+
+func TestPlan_NoDestroyWhenAllInConfig(t *testing.T) {
+	cfg := makeConfig(t, `
+version: "1"
+databases:
+  - name: Projects
+    properties:
+      Name:
+        type: title
+`)
+	st := &state.State{
+		Version: "1",
+		Databases: map[string]state.DatabaseState{
+			"Projects": {
+				ID:         "proj-id",
+				Properties: map[string]state.PropertyState{"Name": {Type: "title"}},
+			},
+		},
+	}
+	eng := New(cfg, st, nil, ".")
+
+	actions, err := eng.Plan()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	for _, a := range actions {
+		if a.Type == "destroy" {
+			t.Errorf("unexpected destroy action: %v", a)
+		}
+	}
+}
+
+func TestApply_DestroyWithConfirmation(t *testing.T) {
+	var deletedIDs []string
+	var mu sync.Mutex
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "DELETE" {
+			mu.Lock()
+			deletedIDs = append(deletedIDs, r.URL.Path)
+			mu.Unlock()
+			w.WriteHeader(200)
+			json.NewEncoder(w).Encode(map[string]interface{}{"id": "ok"})
+			return
+		}
+		w.WriteHeader(404)
+	}))
+	defer srv.Close()
+
+	cfg := makeConfig(t, `
+version: "1"
+databases:
+  - name: Projects
+    properties:
+      Name:
+        type: title
+`)
+	tmpDir := t.TempDir()
+	st := &state.State{
+		Version: "1",
+		Databases: map[string]state.DatabaseState{
+			"Projects": {
+				ID:         "proj-id",
+				Properties: map[string]state.PropertyState{"Name": {Type: "title"}},
+			},
+			"OldDB": {
+				ID:         "old-db-id",
+				Properties: map[string]state.PropertyState{"Name": {Type: "title"}},
+			},
+		},
+	}
+
+	client := notion.NewClientWithBase(srv.URL, "token")
+	eng := New(cfg, st, client, tmpDir)
+	eng.SetConfirmDestroy(func(name, id string) bool {
+		return true // auto-approve
+	})
+
+	actions, err := eng.Apply()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Check destroy action was executed
+	var foundDestroy bool
+	for _, a := range actions {
+		if a.Type == "destroy" && a.DatabaseName == "OldDB" {
+			foundDestroy = true
+			foundArchived := false
+			for _, d := range a.Details {
+				if strings.Contains(d, "archived") {
+					foundArchived = true
+				}
+			}
+			if !foundArchived {
+				t.Error("expected '→ archived' in destroy details")
+			}
+		}
+	}
+	if !foundDestroy {
+		t.Error("expected destroy action for OldDB")
+	}
+
+	// Check API was called
+	if len(deletedIDs) != 1 || deletedIDs[0] != "/blocks/old-db-id" {
+		t.Errorf("expected DELETE /blocks/old-db-id, got %v", deletedIDs)
+	}
+
+	// Check state was cleaned up
+	if _, exists := st.ResolveDatabase("OldDB"); exists {
+		t.Error("expected OldDB to be removed from state")
+	}
+	if _, exists := st.ResolveDatabase("Projects"); !exists {
+		t.Error("expected Projects to remain in state")
+	}
+
+	// Check state file was written
+	if _, err := os.ReadFile(filepath.Join(tmpDir, ".notionctl", "state.json")); err != nil {
+		t.Errorf("expected state file to be written: %v", err)
+	}
+}
+
+func TestApply_DestroyDeclined(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method == "DELETE" {
+			t.Error("DELETE should not be called when user declines")
+		}
+		w.WriteHeader(404)
+	}))
+	defer srv.Close()
+
+	cfg := makeConfig(t, `
+version: "1"
+databases:
+  - name: Projects
+    properties:
+      Name:
+        type: title
+`)
+	tmpDir := t.TempDir()
+	st := &state.State{
+		Version: "1",
+		Databases: map[string]state.DatabaseState{
+			"Projects": {
+				ID:         "proj-id",
+				Properties: map[string]state.PropertyState{"Name": {Type: "title"}},
+			},
+			"OldDB": {
+				ID:         "old-db-id",
+				Properties: map[string]state.PropertyState{"Name": {Type: "title"}},
+			},
+		},
+	}
+
+	client := notion.NewClientWithBase(srv.URL, "token")
+	eng := New(cfg, st, client, tmpDir)
+	eng.SetConfirmDestroy(func(name, id string) bool {
+		return false // decline
+	})
+
+	actions, err := eng.Apply()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	for _, a := range actions {
+		if a.Type == "destroy" {
+			foundSkipped := false
+			for _, d := range a.Details {
+				if strings.Contains(d, "skipped") {
+					foundSkipped = true
+				}
+			}
+			if !foundSkipped {
+				t.Error("expected 'skipped' in declined destroy details")
+			}
+		}
+	}
+
+	// OldDB should still be in state
+	if _, exists := st.ResolveDatabase("OldDB"); !exists {
+		t.Error("expected OldDB to remain in state when declined")
+	}
+}
+
+func TestApply_DestroyNoConfirmCallback(t *testing.T) {
+	cfg := makeConfig(t, `
+version: "1"
+databases:
+  - name: Projects
+    properties:
+      Name:
+        type: title
+`)
+	tmpDir := t.TempDir()
+	st := &state.State{
+		Version: "1",
+		Databases: map[string]state.DatabaseState{
+			"Projects": {
+				ID:         "proj-id",
+				Properties: map[string]state.PropertyState{"Name": {Type: "title"}},
+			},
+			"OldDB": {
+				ID:         "old-db-id",
+				Properties: map[string]state.PropertyState{"Name": {Type: "title"}},
+			},
+		},
+	}
+
+	eng := New(cfg, st, nil, tmpDir)
+	// No confirmDestroy set — destroy should be skipped
+
+	actions, err := eng.Plan()
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	// Plan should still show destroy
+	var hasDestroy bool
+	for _, a := range actions {
+		if a.Type == "destroy" {
+			hasDestroy = true
+		}
+	}
+	if !hasDestroy {
+		t.Error("expected destroy action in plan even without confirm callback")
+	}
+}
+
+func TestFormatPlan_DestroyAction(t *testing.T) {
+	actions := []Action{
+		{Type: "create", DatabaseName: "New", Details: []string{"+ property \"Name\" (title)"}},
+		{Type: "destroy", DatabaseName: "Old", Details: []string{"database ID: old-id (will be archived in Notion)"}},
+	}
+	out := FormatPlan(actions)
+	if !strings.Contains(out, "- destroy") {
+		t.Errorf("expected '- destroy' in plan output, got:\n%s", out)
+	}
+	if !strings.Contains(out, "+ create") {
+		t.Errorf("expected '+ create' in plan output, got:\n%s", out)
+	}
+}
