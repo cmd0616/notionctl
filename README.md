@@ -76,6 +76,7 @@ notionctl apply
 | `notionctl diff` | Compare remote Notion databases against local config |
 | `notionctl sync` | Pull current Notion state back into config YAML |
 | `notionctl validate` | Validate config syntax without connecting to Notion |
+| `notionctl fmt` | Format config file with consistent ordering and style |
 | `notionctl version` | Print version |
 
 Databases removed from your YAML but still in state will be shown as **destroy** actions in `plan`. On `apply`, each destroy prompts for confirmation (archives the database in Notion).
