@@ -161,15 +161,44 @@ Available: CRM, inventory, project tracker, bug tracker. Or [contribute your own
 ## Install
 
 ```bash
-# Homebrew
+# Homebrew (macOS/Linux)
 brew install radityajay/tap/notionctl
 
 # Go
 go install github.com/radityajay/notionctl@latest
 
-# Binary
-# Download from https://github.com/radityajay/notionctl/releases
+# Binary — download from GitHub Releases
+# https://github.com/radityajay/notionctl/releases
 ```
+
+## Multi-Environment Support
+
+Use environment variables in your config for staging/production workflows:
+
+```yaml
+databases:
+  - name: Projects
+    parent_page_id: "${NOTION_PAGE_ID}"
+```
+
+```bash
+NOTION_PAGE_ID=abc123 notionctl apply   # staging
+NOTION_PAGE_ID=def456 notionctl apply   # production
+```
+
+## All Commands
+
+| Command | Description |
+|---------|-------------|
+| `notionctl init` | Generate config (interactive template picker) |
+| `notionctl import` | Import existing databases from Notion |
+| `notionctl plan` | Preview changes |
+| `notionctl apply` | Create/update/destroy databases |
+| `notionctl diff` | Detect drift from manual Notion edits |
+| `notionctl sync` | Pull Notion state back into YAML |
+| `notionctl validate` | Validate config offline |
+| `notionctl fmt` | Auto-format config |
+| `notionctl list` | Show managed databases and IDs |
 
 ## Links
 
