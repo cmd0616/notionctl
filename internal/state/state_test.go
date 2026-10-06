@@ -88,3 +88,32 @@ func TestSetDatabase(t *testing.T) {
 		t.Errorf("expected new-id, got %s (ok=%v)", id, ok)
 	}
 }
+
+func TestRemoveDatabase(t *testing.T) {
+	st := &State{
+		Version: "1",
+		Databases: map[string]DatabaseState{
+			"Keep":   {ID: "keep-id"},
+			"Remove": {ID: "remove-id"},
+		},
+	}
+	st.RemoveDatabase("Remove")
+
+	if _, ok := st.ResolveDatabase("Remove"); ok {
+		t.Error("expected Remove to be gone")
+	}
+	if _, ok := st.ResolveDatabase("Keep"); !ok {
+		t.Error("expected Keep to remain")
+	}
+}
+
+func TestRemoveDatabase_NonExistent(t *testing.T) {
+	st := &State{
+		Version:   "1",
+		Databases: map[string]DatabaseState{"A": {ID: "a-id"}},
+	}
+	st.RemoveDatabase("DoesNotExist") // should not panic
+	if len(st.Databases) != 1 {
+		t.Errorf("expected 1 database, got %d", len(st.Databases))
+	}
+}

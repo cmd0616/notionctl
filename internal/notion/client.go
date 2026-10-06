@@ -100,6 +100,15 @@ func (c *Client) GetDatabase(databaseID string) (map[string]interface{}, error) 
 	return resp, nil
 }
 
+// ArchiveDatabase archives (soft-deletes) a database by its block ID.
+func (c *Client) ArchiveDatabase(databaseID string) error {
+	_, err := c.do("DELETE", "/blocks/"+databaseID, nil)
+	if err != nil {
+		return fmt.Errorf("archiving database %s: %w", databaseID, err)
+	}
+	return nil
+}
+
 // ListBlockChildren retrieves child blocks of a page/block.
 // Handles pagination automatically and returns all children.
 func (c *Client) ListBlockChildren(blockID string) ([]map[string]interface{}, error) {

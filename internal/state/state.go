@@ -124,3 +124,8 @@ func (s *State) GetDatabaseProperties(name string) map[string]PropertyState {
 	}
 	return nil
 }
+
+// RemoveDatabase removes a database from state.
+func (s *State) RemoveDatabase(name string) {
+	delete(s.Databases, name)
+}

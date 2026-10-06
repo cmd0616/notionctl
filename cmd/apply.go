@@ -1,8 +1,10 @@
 package cmd
 
 import (
+	"bufio"
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/spf13/cobra"
 
@@ -14,6 +16,8 @@ import (
 	// Register all property types.
 	_ "github.com/radityajay/notionctl/internal/property"
 )
+
+var autoApprove bool
 
 var applyCmd = &cobra.Command{
 	Use:   "apply",
@@ -37,6 +41,18 @@ var applyCmd = &cobra.Command{
 		client := notion.NewClient(token)
 		eng := engine.New(cfg, st, client, ".")
 
+		// Set up destroy confirmation
+		eng.SetConfirmDestroy(func(name, id string) bool {
+			if autoApprove {
+				return true
+			}
+			fmt.Printf("⚠ Destroy database %q (ID: %s)? This will archive it in Notion. [y/N] ", name, id)
+			reader := bufio.NewReader(os.Stdin)
+			answer, _ := reader.ReadString('\n')
+			answer = strings.TrimSpace(strings.ToLower(answer))
+			return answer == "y" || answer == "yes"
+		})
+
 		// Show plan first
 		actions, err := eng.Plan()
 		if err != nil {
@@ -57,7 +73,11 @@ var applyCmd = &cobra.Command{
 		}
 
 		for _, r := range results {
-			fmt.Printf("✓ %s %q\n", r.Type, r.DatabaseName)
+			icon := "✓"
+			if r.Type == "destroy" {
+				icon = "✗"
+			}
+			fmt.Printf("%s %s %q\n", icon, r.Type, r.DatabaseName)
 			for _, d := range r.Details {
 				fmt.Printf("  %s\n", d)
 			}
@@ -69,5 +89,6 @@ var applyCmd = &cobra.Command{
 }
 
 func init() {
+	applyCmd.Flags().BoolVar(&autoApprove, "auto-approve", false, "skip confirmation prompts for destructive actions")
 	rootCmd.AddCommand(applyCmd)
 }
