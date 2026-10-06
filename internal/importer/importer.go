@@ -64,6 +64,41 @@ func (imp *Importer) FromPage(pageID string) (*Result, error) {
 	return imp.fromDatabaseIDs(dbIDs, pageID)
 }
 
+// FromState syncs existing managed databases from Notion back to config.
+// Uses the current state to know which databases to fetch, and preserves
+// parent_page_id from the existing config.
+func (imp *Importer) FromState(existingCfg *config.Config, st *state.State) (*Result, error) {
+	if len(st.Databases) == 0 {
+		return nil, fmt.Errorf("no databases in state — run 'notionctl apply' first")
+	}
+
+	// Build ID→name map and parent_page_id map from existing config
+	var dbIDs []string
+	nameToParent := map[string]string{}
+	for _, db := range existingCfg.Databases {
+		nameToParent[db.Name] = db.ParentPageID
+	}
+	for name, dbState := range st.Databases {
+		dbIDs = append(dbIDs, dbState.ID)
+		_ = name // used via idToName in fromDatabaseIDs
+	}
+
+	// Use empty parentPageID — we'll fix it after
+	result, err := imp.fromDatabaseIDs(dbIDs, "")
+	if err != nil {
+		return nil, err
+	}
+
+	// Restore parent_page_id from existing config
+	for i, db := range result.Config.Databases {
+		if parent, ok := nameToParent[db.Name]; ok {
+			result.Config.Databases[i].ParentPageID = parent
+		}
+	}
+
+	return result, nil
+}
+
 // fromDatabaseIDs fetches each database schema and builds config + state.
 func (imp *Importer) fromDatabaseIDs(dbIDs []string, parentPageID string) (*Result, error) {
 	result := &Result{
