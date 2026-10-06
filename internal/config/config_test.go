@@ -1,6 +1,7 @@
 package config
 
 import (
+	"os"
 	"testing"
 
 	// Register property types for validation tests.
@@ -476,4 +477,107 @@ databases:
 	if err == nil {
 		t.Fatal("expected error when rollup relation property does not exist")
 	}
+}
+
+// --- Tests for env var substitution ---
+
+func TestExpandEnvVars_Basic(t *testing.T) {
+	t.Setenv("TEST_PAGE_ID", "abc123")
+	result, missing := expandEnvVars(`parent_page_id: "${TEST_PAGE_ID}"`)
+	if len(missing) > 0 {
+		t.Errorf("unexpected missing vars: %v", missing)
+	}
+	if result != `parent_page_id: "abc123"` {
+		t.Errorf("expected 'abc123', got %q", result)
+	}
+}
+
+func TestExpandEnvVars_Multiple(t *testing.T) {
+	t.Setenv("PAGE_A", "aaa")
+	t.Setenv("PAGE_B", "bbb")
+	result, missing := expandEnvVars(`a: "${PAGE_A}" b: "${PAGE_B}"`)
+	if len(missing) > 0 {
+		t.Errorf("unexpected missing vars: %v", missing)
+	}
+	if result != `a: "aaa" b: "bbb"` {
+		t.Errorf("unexpected result: %q", result)
+	}
+}
+
+func TestExpandEnvVars_Missing(t *testing.T) {
+	_, missing := expandEnvVars(`page: "${NONEXISTENT_VAR_12345}"`)
+	if len(missing) != 1 || missing[0] != "${NONEXISTENT_VAR_12345}" {
+		t.Errorf("expected 1 missing var, got: %v", missing)
+	}
+}
+
+func TestExpandEnvVars_NoVars(t *testing.T) {
+	input := `parent_page_id: "abc123"`
+	result, missing := expandEnvVars(input)
+	if len(missing) > 0 {
+		t.Errorf("unexpected missing vars: %v", missing)
+	}
+	if result != input {
+		t.Errorf("expected no change, got %q", result)
+	}
+}
+
+func TestExpandEnvVars_EmptyValue(t *testing.T) {
+	t.Setenv("EMPTY_VAR", "")
+	result, missing := expandEnvVars(`page: "${EMPTY_VAR}"`)
+	if len(missing) > 0 {
+		t.Errorf("unexpected missing vars: %v", missing)
+	}
+	if result != `page: ""` {
+		t.Errorf("expected empty value, got %q", result)
+	}
+}
+
+func TestLoad_WithEnvVars(t *testing.T) {
+	t.Setenv("TEST_NOTION_PAGE", "page-123")
+
+	tmpFile := t.TempDir() + "/notionctl.yaml"
+	yaml := `version: "1"
+databases:
+  - name: Projects
+    parent_page_id: "${TEST_NOTION_PAGE}"
+    properties:
+      Name:
+        type: title
+`
+	if err := writeFile(tmpFile, yaml); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := Load(tmpFile)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if cfg.Databases[0].ParentPageID != "page-123" {
+		t.Errorf("expected 'page-123', got %q", cfg.Databases[0].ParentPageID)
+	}
+}
+
+func TestLoad_MissingEnvVar(t *testing.T) {
+	tmpFile := t.TempDir() + "/notionctl.yaml"
+	yaml := `version: "1"
+databases:
+  - name: Projects
+    parent_page_id: "${MISSING_VAR_XYZ}"
+    properties:
+      Name:
+        type: title
+`
+	if err := writeFile(tmpFile, yaml); err != nil {
+		t.Fatal(err)
+	}
+
+	_, err := Load(tmpFile)
+	if err == nil {
+		t.Fatal("expected error for missing env var")
+	}
+}
+
+func writeFile(path, content string) error {
+	return os.WriteFile(path, []byte(content), 0o644)
 }
