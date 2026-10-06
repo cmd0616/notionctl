@@ -10,6 +10,7 @@ func TestAllCoreTypesRegistered(t *testing.T) {
 		"checkbox", "date", "url", "email", "phone_number",
 		"created_time", "last_edited_time", "status",
 		"formula", "rollup",
+		"people", "files", "unique_id",
 	}
 	for _, typ := range expected {
 		if _, err := Get(typ); err != nil {
@@ -101,8 +102,8 @@ func TestRelationToNotion_MissingTarget(t *testing.T) {
 
 func TestSupportedTypes(t *testing.T) {
 	types := SupportedTypes()
-	if len(types) < 16 {
-		t.Errorf("expected at least 16 types, got %d: %v", len(types), types)
+	if len(types) < 19 {
+		t.Errorf("expected at least 19 types, got %d: %v", len(types), types)
 	}
 }
 
@@ -110,7 +111,7 @@ func TestSupportedTypes(t *testing.T) {
 
 func TestSimplePropertyTypes(t *testing.T) {
 	// These types all have empty config — just verify ToNotion returns the correct key.
-	simpleTypes := []string{"checkbox", "date", "url", "email", "phone_number", "created_time"}
+	simpleTypes := []string{"checkbox", "date", "url", "email", "phone_number", "created_time", "people", "files"}
 	for _, typ := range simpleTypes {
 		t.Run(typ, func(t *testing.T) {
 			p, err := Get(typ)
@@ -225,6 +226,52 @@ func TestStatusDiffSummary_NoChange(t *testing.T) {
 				map[string]interface{}{"name": "X"},
 			},
 		},
+	)
+	if diff != "" {
+		t.Errorf("expected empty diff, got %q", diff)
+	}
+}
+
+func TestUniqueIDToNotion_NoPrefix(t *testing.T) {
+	p, _ := Get("unique_id")
+	cfg, err := p.ToNotion(map[string]interface{}{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	innerCfg := cfg["unique_id"].(map[string]interface{})
+	if _, ok := innerCfg["prefix"]; ok {
+		t.Error("expected no prefix when not specified")
+	}
+}
+
+func TestUniqueIDToNotion_WithPrefix(t *testing.T) {
+	p, _ := Get("unique_id")
+	cfg, err := p.ToNotion(map[string]interface{}{"prefix": "TICKET"})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	innerCfg := cfg["unique_id"].(map[string]interface{})
+	if innerCfg["prefix"] != "TICKET" {
+		t.Errorf("expected prefix 'TICKET', got %v", innerCfg["prefix"])
+	}
+}
+
+func TestUniqueIDDiffSummary(t *testing.T) {
+	p, _ := Get("unique_id")
+	diff := p.DiffSummary(
+		map[string]interface{}{"prefix": "BUG"},
+		map[string]interface{}{"prefix": "TICKET"},
+	)
+	if diff == "" {
+		t.Error("expected non-empty diff when prefix differs")
+	}
+}
+
+func TestUniqueIDDiffSummary_NoChange(t *testing.T) {
+	p, _ := Get("unique_id")
+	diff := p.DiffSummary(
+		map[string]interface{}{"prefix": "BUG"},
+		map[string]interface{}{"prefix": "BUG"},
 	)
 	if diff != "" {
 		t.Errorf("expected empty diff, got %q", diff)

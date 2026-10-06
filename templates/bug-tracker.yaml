@@ -99,9 +99,9 @@ databases:
           - name: needs-info
             color: gray
       Reporter:
-        type: rich_text
+        type: people
       Assignee:
-        type: rich_text
+        type: people
       Closed:
         type: checkbox
       Regression:
@@ -135,7 +135,7 @@ databases:
       Description:
         type: rich_text
       Owner:
-        type: rich_text
+        type: people
       bugs:
         type: relation
         relation: Bugs
