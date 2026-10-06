@@ -391,6 +391,57 @@ func TestFromPage_UnsupportedType(t *testing.T) {
 				"Name": map[string]interface{}{
 					"id": "title", "type": "title", "title": map[string]interface{}{},
 				},
+				"Avatar": map[string]interface{}{
+					"id":            "btn1",
+					"type":          "button",
+					"button":        map[string]interface{}{},
+				},
+			},
+		},
+	}
+
+	srv := mockServer(blocks, databases)
+	defer srv.Close()
+
+	client := notion.NewClientWithBase(srv.URL+"/v1", "test-token")
+	imp := New(client)
+	result, err := imp.FromPage("page-001")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+
+	db := result.Config.Databases[0]
+	if _, exists := db.Properties["Avatar"]; exists {
+		t.Error("expected unsupported 'button' type to be skipped")
+	}
+	if len(result.Warnings) == 0 {
+		t.Error("expected warning for unsupported type")
+	}
+	found := false
+	for _, w := range result.Warnings {
+		if strings.Contains(w, "button") {
+			found = true
+		}
+	}
+	if !found {
+		t.Errorf("expected warning mentioning 'button', got %v", result.Warnings)
+	}
+}
+
+func TestFromPage_PeopleType(t *testing.T) {
+	blocks := []map[string]interface{}{
+		{"type": "child_database", "id": "db-001"},
+	}
+	databases := map[string]map[string]interface{}{
+		"db-001": {
+			"id": "db-001",
+			"title": []interface{}{
+				map[string]interface{}{"plain_text": "Test"},
+			},
+			"properties": map[string]interface{}{
+				"Name": map[string]interface{}{
+					"id": "title", "type": "title", "title": map[string]interface{}{},
+				},
 				"Owner": map[string]interface{}{
 					"id":     "ppl1",
 					"type":   "people",
@@ -411,20 +462,12 @@ func TestFromPage_UnsupportedType(t *testing.T) {
 	}
 
 	db := result.Config.Databases[0]
-	if _, exists := db.Properties["Owner"]; exists {
-		t.Error("expected unsupported 'people' type to be skipped")
+	ownerProp, exists := db.Properties["Owner"]
+	if !exists {
+		t.Fatal("expected 'Owner' people property to be imported")
 	}
-	if len(result.Warnings) == 0 {
-		t.Error("expected warning for unsupported type")
-	}
-	found := false
-	for _, w := range result.Warnings {
-		if strings.Contains(w, "people") {
-			found = true
-		}
-	}
-	if !found {
-		t.Errorf("expected warning mentioning 'people', got %v", result.Warnings)
+	if ownerProp.Type != "people" {
+		t.Errorf("expected type 'people', got %q", ownerProp.Type)
 	}
 }
 

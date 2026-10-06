@@ -53,13 +53,7 @@ The `init()` function auto-registers your type. No other files need to change.
 
 ### Available Property Types to Add
 
-All core Notion property types are already implemented. Check the [Notion API docs](https://developers.notion.com/reference/property-object) for any new types that Notion may add in the future. Some types that could still be contributed:
-
-| Type | Difficulty | Notes |
-|------|-----------|-------|
-| `people` | Easy | No config needed |
-| `files` | Easy | No config needed |
-| `unique_id` | Easy | `prefix` config |
+All Notion property types are now implemented (19 types). Check the [Notion API docs](https://developers.notion.com/reference/property-object) for any new types that Notion may add in the future.
 
 ## Add a YAML Template (No Go Required!)
 

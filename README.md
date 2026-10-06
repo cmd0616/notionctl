@@ -107,6 +107,9 @@ Want to add a template? See [CONTRIBUTING.md](CONTRIBUTING.md) — no Go require
 | `status` | Kanban-style status | `options` (name + color), `groups` |
 | `created_time` | Creation timestamp (managed by Notion) | — |
 | `last_edited_time` | Last edit timestamp (managed by Notion) | — |
+| `people` | User references (workspace members) | — |
+| `files` | File & media attachments | — |
+| `unique_id` | Auto-generated sequential ID | `prefix` |
 
 ## How It Works
 

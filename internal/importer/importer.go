@@ -19,6 +19,7 @@ var supportedTypes = map[string]bool{
 	"email": true, "phone_number": true, "status": true,
 	"created_time": true, "last_edited_time": true,
 	"formula": true, "rollup": true,
+	"people": true, "files": true, "unique_id": true,
 }
 
 // Result holds the output of an import operation.
@@ -159,7 +160,8 @@ func mapProperty(name, propType string, propMap map[string]interface{}, idToName
 
 	switch propType {
 	case "title", "rich_text", "checkbox", "date", "url", "email",
-		"phone_number", "created_time", "last_edited_time":
+		"phone_number", "created_time", "last_edited_time",
+		"people", "files":
 		// No extra config needed
 
 	case "number":
@@ -204,6 +206,13 @@ func mapProperty(name, propType string, propMap map[string]interface{}, idToName
 			}
 			if fn, ok := rCfg["function"].(string); ok {
 				def.Extra["function"] = fn
+			}
+		}
+
+	case "unique_id":
+		if uidCfg, ok := propMap["unique_id"].(map[string]interface{}); ok {
+			if prefix, ok := uidCfg["prefix"].(string); ok && prefix != "" {
+				def.Extra["prefix"] = prefix
 			}
 		}
 
