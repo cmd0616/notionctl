@@ -29,9 +29,12 @@ jobs:
         run: |
           if [ -f notionctl.yaml ]; then
             echo "Validating notionctl.yaml..."
-            ./notionctl plan 2>&1 || true
-            # plan without NOTION_TOKEN will fail on apply but validates config parsing
+            ./notionctl validate
           fi
 
       - name: Validate templates
-        run: go test ./internal/config/... -run TestTemplatesValid -v
+        run: |
+          for f in templates/*.yaml; do
+            echo "Validating $f..."
+            ./notionctl validate -c "$f"
+          done
