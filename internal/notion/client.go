@@ -11,9 +11,11 @@ import (
 )
 
 const (
-	baseURL       = "https://api.notion.com/v1"
-	apiVersion    = "2022-06-28"
+	baseURL        = "https://api.notion.com/v1"
+	apiVersion     = "2022-06-28"
 	defaultTimeout = 30 * time.Second
+	maxRetries     = 3
+	baseRetryDelay = 1 * time.Second
 )
 
 // Client is a Notion API client.
@@ -21,6 +23,7 @@ type Client struct {
 	token      string
 	baseURL    string
 	httpClient *http.Client
+	retryDelay time.Duration // base delay for retry backoff, 0 means use default
 }
 
 // NewClient creates a new Notion API client with the given integration token.
@@ -139,42 +142,80 @@ func (c *Client) ListBlockChildren(blockID string) ([]map[string]interface{}, er
 }
 
 func (c *Client) do(method, path string, body interface{}) (map[string]interface{}, error) {
-	var reqBody io.Reader
+	var bodyData []byte
 	if body != nil {
-		data, err := json.Marshal(body)
+		var err error
+		bodyData, err = json.Marshal(body)
 		if err != nil {
 			return nil, fmt.Errorf("encoding request: %w", err)
 		}
-		reqBody = bytes.NewReader(data)
 	}
 
-	req, err := http.NewRequest(method, c.baseURL+path, reqBody)
-	if err != nil {
-		return nil, fmt.Errorf("creating request: %w", err)
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		if attempt > 0 {
+			base := c.retryDelay
+			if base == 0 {
+				base = baseRetryDelay
+			}
+			delay := base * time.Duration(1<<(attempt-1)) // exponential: 1x, 2x, 4x
+			time.Sleep(delay)
+		}
+
+		var reqBody io.Reader
+		if bodyData != nil {
+			reqBody = bytes.NewReader(bodyData)
+		}
+
+		req, err := http.NewRequest(method, c.baseURL+path, reqBody)
+		if err != nil {
+			return nil, fmt.Errorf("creating request: %w", err)
+		}
+
+		req.Header.Set("Authorization", "Bearer "+c.token)
+		req.Header.Set("Notion-Version", apiVersion)
+		req.Header.Set("Content-Type", "application/json")
+
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, fmt.Errorf("sending request: %w", err)
+		}
+
+		respData, err := io.ReadAll(resp.Body)
+		resp.Body.Close()
+		if err != nil {
+			return nil, fmt.Errorf("reading response: %w", err)
+		}
+
+		if resp.StatusCode >= 400 {
+			apiErr := parseAPIError(resp.StatusCode, respData)
+			// Retry on 429 (rate limit) and 5xx (server errors)
+			if (resp.StatusCode == 429 || resp.StatusCode >= 500) && attempt < maxRetries {
+				lastErr = apiErr
+				continue
+			}
+			return nil, apiErr
+		}
+
+		var result map[string]interface{}
+		if err := json.Unmarshal(respData, &result); err != nil {
+			return nil, fmt.Errorf("parsing response: %w", err)
+		}
+		return result, nil
 	}
 
-	req.Header.Set("Authorization", "Bearer "+c.token)
-	req.Header.Set("Notion-Version", apiVersion)
-	req.Header.Set("Content-Type", "application/json")
+	return nil, fmt.Errorf("max retries exceeded: %w", lastErr)
+}
 
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, fmt.Errorf("sending request: %w", err)
+// parseAPIError extracts a structured error from a Notion API error response.
+func parseAPIError(statusCode int, body []byte) *APIError {
+	var parsed struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
 	}
-	defer resp.Body.Close()
-
-	respData, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading response: %w", err)
+	if err := json.Unmarshal(body, &parsed); err != nil {
+		// Couldn't parse — use raw body as message
+		return newAPIError(statusCode, "", string(body))
 	}
-
-	if resp.StatusCode >= 400 {
-		return nil, fmt.Errorf("API error %d: %s", resp.StatusCode, string(respData))
-	}
-
-	var result map[string]interface{}
-	if err := json.Unmarshal(respData, &result); err != nil {
-		return nil, fmt.Errorf("parsing response: %w", err)
-	}
-	return result, nil
+	return newAPIError(statusCode, parsed.Code, parsed.Message)
 }
