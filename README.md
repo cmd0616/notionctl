@@ -130,6 +130,29 @@ Want to add a template? See [CONTRIBUTING.md](CONTRIBUTING.md) — no Go require
 3. **`notionctl apply`** — Creates/updates databases via Notion API, saves state
 4. **`notionctl diff`** — Fetches remote databases and detects drift from manual edits
 
+### Environment Variables in Config
+
+Use `${VAR_NAME}` to reference environment variables in your YAML config. Useful for multi-environment setups:
+
+```yaml
+databases:
+  - name: Projects
+    parent_page_id: "${NOTION_PAGE_ID}"
+    properties:
+      Name:
+        type: title
+```
+
+```bash
+# Staging
+NOTION_PAGE_ID=abc123 notionctl apply
+
+# Production
+NOTION_PAGE_ID=def456 notionctl apply
+```
+
+All `${VAR}` references must be set — `notionctl` will error if any are missing.
+
 ### Example: `notionctl plan`
 
 ```

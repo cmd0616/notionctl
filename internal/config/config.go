@@ -4,10 +4,15 @@ package config
 import (
 	"fmt"
 	"os"
+	"regexp"
+	"strings"
 
 	"github.com/radityajay/notionctl/internal/property"
 	"gopkg.in/yaml.v3"
 )
+
+// envVarPattern matches ${VAR_NAME} patterns for environment variable substitution.
+var envVarPattern = regexp.MustCompile(`\$\{([a-zA-Z_][a-zA-Z0-9_]*)\}`)
 
 // Config is the top-level YAML schema for notionctl.
 type Config struct {
@@ -43,12 +48,33 @@ type PropertyDef struct {
 }
 
 // Load reads and parses a notionctl YAML config file.
+// Environment variables in ${VAR_NAME} format are expanded before parsing.
 func Load(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("reading config: %w", err)
 	}
-	return Parse(data)
+	expanded, missing := expandEnvVars(string(data))
+	if len(missing) > 0 {
+		return nil, fmt.Errorf("unresolved environment variables: %s", strings.Join(missing, ", "))
+	}
+	return Parse([]byte(expanded))
+}
+
+// expandEnvVars replaces ${VAR_NAME} patterns with environment variable values.
+// Returns the expanded string and a list of any unresolved variable names.
+func expandEnvVars(input string) (string, []string) {
+	var missing []string
+	result := envVarPattern.ReplaceAllStringFunc(input, func(match string) string {
+		varName := envVarPattern.FindStringSubmatch(match)[1]
+		val, ok := os.LookupEnv(varName)
+		if !ok {
+			missing = append(missing, "${"+varName+"}")
+			return match
+		}
+		return val
+	})
+	return result, missing
 }
 
 // Parse parses raw YAML bytes into a Config.
