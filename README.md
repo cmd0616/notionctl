@@ -67,6 +67,7 @@ notionctl apply
 | `notionctl plan` | Preview changes (diff config vs state) |
 | `notionctl apply` | Create/update/destroy databases in Notion |
 | `notionctl apply --auto-approve` | Skip confirmation prompts for destructive actions |
+| `notionctl diff` | Compare remote Notion databases against local config |
 | `notionctl version` | Print version |
 
 Databases removed from your YAML but still in state will be shown as **destroy** actions in `plan`. On `apply`, each destroy prompts for confirmation (archives the database in Notion).
