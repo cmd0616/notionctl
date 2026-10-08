@@ -282,12 +282,14 @@ func extractTitle(db map[string]interface{}) string {
 	if !ok || len(titleArr) == 0 {
 		return ""
 	}
-	first, ok := titleArr[0].(map[string]interface{})
-	if !ok {
-		return ""
+	var title strings.Builder
+	for _, raw := range titleArr {
+		if part, ok := raw.(map[string]interface{}); ok {
+			text, _ := part["plain_text"].(string)
+			title.WriteString(text)
+		}
 	}
-	text, _ := first["plain_text"].(string)
-	return text
+	return title.String()
 }
 
 // extractOptions extracts select/multi_select/status options.

@@ -658,6 +658,44 @@ func TestFromState_Basic(t *testing.T) {
 	}
 }
 
+func TestFromState_MultipartTitle(t *testing.T) {
+	databases := map[string]map[string]interface{}{
+		"db-001": {
+			"id": "db-001",
+			"title": []interface{}{
+				map[string]interface{}{"plain_text": "Project ", "annotations": map[string]interface{}{"bold": true}},
+				map[string]interface{}{"plain_text": "Tracker"},
+			},
+			"properties": map[string]interface{}{
+				"Name": map[string]interface{}{"id": "title", "type": "title", "title": map[string]interface{}{}},
+			},
+		},
+	}
+	srv := mockServer(nil, databases)
+	defer srv.Close()
+	imp := New(notion.NewClientWithBase(srv.URL+"/v1", "test-token"))
+	cfg := &config.Config{Version: "1", Databases: []config.Database{
+		{Name: "Project Tracker", ParentPageID: "page-123"},
+	}}
+	st := &state.State{Version: "1", Databases: map[string]state.DatabaseState{
+		"Project Tracker": {ID: "db-001"},
+	}}
+	result, err := imp.FromState(cfg, st)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(result.Config.Databases) != 1 {
+		t.Fatalf("expected one database, got %d", len(result.Config.Databases))
+	}
+	db := result.Config.Databases[0]
+	if db.Name != "Project Tracker" || db.ParentPageID != "page-123" {
+		t.Errorf("expected full title and preserved parent, got %q and %q", db.Name, db.ParentPageID)
+	}
+	if got := result.State.Databases["Project Tracker"].ID; got != "db-001" {
+		t.Errorf("expected state under full title, got ID %q", got)
+	}
+}
+
 func TestFromState_EmptyState(t *testing.T) {
 	client := notion.NewClientWithBase("http://localhost", "token")
 	imp := New(client)
