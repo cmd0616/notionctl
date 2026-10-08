@@ -97,6 +97,7 @@ notionctl plan
 | [`inventory.yaml`](templates/inventory.yaml) | Products, Suppliers | Stock management |
 | [`project-tracker.yaml`](templates/project-tracker.yaml) | Projects, Milestones, Tasks | Project management |
 | [`bug-tracker.yaml`](templates/bug-tracker.yaml) | Bugs, Components, Releases | Issue / defect tracking |
+| [`okr-tracker.yaml`](templates/okr-tracker.yaml) | Objectives, Key Results | Goal tracking with rollup progress |
 
 Want to add a template? See [CONTRIBUTING.md](CONTRIBUTING.md) — no Go required!
 

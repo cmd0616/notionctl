@@ -1,0 +1,134 @@
+# OKR Tracker template
+# Usage: cp templates/okr-tracker.yaml notionctl.yaml && notionctl plan
+#
+# Shows off: unique_id (OKR-1, OKR-2...), people, formula, and rollup.
+# Progress is aggregated from Key Results, so marking KRs at risk rolls up
+# to the objective automatically.
+version: "1"
+
+databases:
+  - name: Objectives
+    parent_page_id: "YOUR_PAGE_ID"
+    properties:
+      Objective:
+        type: title
+      ID:
+        type: unique_id
+        prefix: OKR
+      Description:
+        type: rich_text
+      Quarter:
+        type: select
+        options:
+          - name: Q1
+            color: blue
+          - name: Q2
+            color: green
+          - name: Q3
+            color: yellow
+          - name: Q4
+            color: orange
+      Status:
+        type: status
+        options:
+          - name: Not Started
+            color: gray
+          - name: In Progress
+            color: blue
+          - name: At Risk
+            color: orange
+          - name: Completed
+            color: green
+        groups:
+          - name: Not Started
+            option_ids:
+              - Not Started
+          - name: In Progress
+            option_ids:
+              - In Progress
+              - At Risk
+          - name: Complete
+            option_ids:
+              - Completed
+      Owner:
+        type: people
+      Team:
+        type: select
+        options:
+          - name: Engineering
+            color: blue
+          - name: Product
+            color: purple
+          - name: Design
+            color: pink
+          - name: Sales
+            color: orange
+          - name: Marketing
+            color: green
+      Start Date:
+        type: date
+      End Date:
+        type: date
+      key_results:
+        type: relation
+        relation: Key Results
+      key_result_count:
+        type: rollup
+        relation: key_results
+        rollup_property: Name
+        function: count
+      progress:
+        type: rollup
+        relation: key_results
+        rollup_property: progress
+        function: average
+      at_risk_count:
+        type: rollup
+        relation: key_results
+        rollup_property: at_risk
+        function: checked
+      health:
+        type: formula
+        expression: 'if(prop("at_risk_count") > 0, "At Risk", if(prop("progress") >= 0.7, "On Track", "Behind"))'
+
+  - name: Key Results
+    parent_page_id: "YOUR_PAGE_ID"
+    properties:
+      Name:
+        type: title
+      target:
+        type: number
+      current:
+        type: number
+      progress:
+        type: formula
+        expression: 'if(prop("target") == 0, 0, prop("current") / prop("target"))'
+      remaining:
+        type: formula
+        expression: 'prop("target") - prop("current")'
+      Status:
+        type: select
+        options:
+          - name: Not Started
+            color: gray
+          - name: In Progress
+            color: blue
+          - name: At Risk
+            color: orange
+          - name: Completed
+            color: green
+      at_risk:
+        type: checkbox
+      Owner:
+        type: people
+      Due Date:
+        type: date
+      Notes:
+        type: rich_text
+      objective:
+        type: relation
+        relation: Objectives
+      Created:
+        type: created_time
+      Updated:
+        type: last_edited_time
